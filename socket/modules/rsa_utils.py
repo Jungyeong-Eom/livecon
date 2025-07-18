@@ -2,7 +2,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 
 # RSA 키 생성 및 PEM 파일 저장
-def generate_and_save_keys(private_path='private.pem', public_path='node/public.pem'):
+def generate_and_save_keys(private_path='server/private.pem', public_path='node/public.pem'):
     key = RSA.generate(2048)
     private_key = key.export_key()
     public_key = key.publickey().export_key()

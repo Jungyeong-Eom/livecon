@@ -26,7 +26,7 @@ def generate_random_packet() -> bytes:
     packet += now.hour.to_bytes(1, 'big')
     packet += now.minute.to_bytes(1, 'big')
     packet += now.second.to_bytes(1, 'big')
-    checksum = sum(packet) & 0xFFFF
+    checksum = sum(packet[1:29]) & 0xFFFF
     packet += checksum.to_bytes(2, 'big')
     packet.append(ETX)
 
