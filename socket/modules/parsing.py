@@ -46,10 +46,10 @@ def parse_packet(data: bytes):
         raise ValueError("Second out of range (0 to 59)")
     
     chk = int.from_bytes(data[29:31], 'big')
-    """
+    
     if (chk != int.from_bytes(checksum.checksum(data))):
         raise ValueError("Checksum error!")
-    """
+    
     if (data[31] != ord('\\')):
         raise ValueError("ETX error!")
     

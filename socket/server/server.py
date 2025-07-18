@@ -6,7 +6,7 @@ from modules import parsing
 # RSA 키 생성 및 저장
 generate_and_save_keys()
 
-private_key = load_private_key("private.pem")
+private_key = load_private_key("server/private.pem")
 HOST = 'localhost'
 PORT = 12346
 
