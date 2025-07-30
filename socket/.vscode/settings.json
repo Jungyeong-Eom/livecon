@@ -1,0 +1,6 @@
+{
+  "python.pythonPath": "C:\\Python\\Python313\\python.exe",
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.extraPaths": ["./"],
+  "python.languageServer": "Pylance"
+}

@@ -1,5 +1,6 @@
 #parsing.py
-from modules import checksum
+from server_module import checksum
+from server_module.geohash_decode import geohash_decode
 
 def parse_packet(data: bytes):
     if len(data) < 32:
@@ -12,19 +13,20 @@ def parse_packet(data: bytes):
     length = int.from_bytes(data[3:6], 'big')
 
     temp_raw = int.from_bytes(data[6:8], 'big', signed = False)
-    o2_raw = int.from_bytes(data[8:10], 'big', signed = False)
+    do_raw = int.from_bytes(data[8:10], 'big', signed = False)
     wtr_temp_raw = int.from_bytes(data[10:12], 'big', signed = False)
 
     temp = temp_raw / 10.0
     if (temp < -40.0 or temp > 125.0):
         raise ValueError("Temperature out of range (-40.0 to 125.0)")
-    o2 = o2_raw / 100.0
-    if (o2 < 0.0 or o2 > 60.0):
-        raise ValueError("O2 out of range (0.0 to 60.0)")
+    do = do_raw / 100.0
+    if (do < 0.0 or do > 60.0):
+        raise ValueError("DO out of range (0.0 to 60.0)")
     wtr_temp = wtr_temp_raw / 10.0
     if (wtr_temp < 0.0 or wtr_temp > 100.0):
         raise ValueError("Water temperature out of range (0.0 to 100.0)")
-    loc = data[12:22].decode('ascii')
+    loc = geohash_decode(data[12:22])
+    
 
     year = int.from_bytes(data[22:24], 'big')
     if (year < 2000 or year > 2099):
@@ -48,7 +50,7 @@ def parse_packet(data: bytes):
     chk = int.from_bytes(data[29:31], 'big')
     
     if (chk != int.from_bytes(checksum.checksum(data))):
-        raise ValueError("Checksum error!")
+        raise ValueError("Checksum error!") 
     
     if (data[31] != ord('\\')):
         raise ValueError("ETX error!")
@@ -57,7 +59,7 @@ def parse_packet(data: bytes):
         'ID': data_id,
         'LEN': length,
         'TEMP': temp,
-        'O2': o2,
+        'DO': do,
         'WTR_TEMP': wtr_temp,
         'LOC': loc,
         'TIME': f'{year:04d}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d}',
