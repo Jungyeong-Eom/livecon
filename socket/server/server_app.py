@@ -5,7 +5,7 @@ from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QLabel, QPushButton, QTextEdit, 
                             QTableWidget, QTableWidgetItem, QTabWidget,
-                            QGroupBox, QGridLayout, QStatusBar)
+                            QGroupBox, QGridLayout, QStatusBar, QHeaderView)
 from PyQt5.QtCore import QTimer, pyqtSignal, QObject, QThread
 from PyQt5.QtGui import QFont
 
@@ -192,6 +192,17 @@ class LiveConServerGUI(QMainWindow):
             "시간", "클라이언트", "센서 ID", "온도(°C)", "용존산소(ppm)", 
             "수온(°C)", "위치"
         ])
+        
+        # 테이블 헤더가 창 크기에 맞게 자동 조절되도록 설정
+        header = self.data_table.horizontalHeader()
+        header.setStretchLastSection(True)  # 마지막 컬럼이 남은 공간을 채움
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # 시간 컬럼
+        header.setSectionResizeMode(1, QHeaderView.Stretch)           # 클라이언트 컬럼
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # 센서 ID 컬럼
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # 온도 컬럼
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # 용존산소 컬럼
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # 수온 컬럼
+        header.setSectionResizeMode(6, QHeaderView.Stretch)           # 위치 컬럼
         
         data_layout.addWidget(self.data_table)
         data_group.setLayout(data_layout)
