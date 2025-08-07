@@ -1,0 +1,5 @@
+# 클라이언트(센서 노드) 의존성
+pycryptodome>=3.15.0  # RSA 암호화
+
+# 빌드 도구
+pyinstaller>=5.0      # exe 파일 생성
