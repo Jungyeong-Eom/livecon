@@ -1,0 +1,6 @@
+# 서버 의존성
+pycryptodome>=3.15.0  # RSA 복호화
+pymysql>=1.0.0        # MySQL 데이터베이스 연결
+
+# 빌드 도구
+pyinstaller>=5.0      # exe 파일 생성

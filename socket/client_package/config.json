@@ -1,0 +1,11 @@
+{
+    "server": {
+        "address": "localhost",
+        "port": 12351
+    },
+    "client": {
+        "sensor_id": "SENSOR_001",
+        "send_interval": 3,
+        "public_key_path": "public.pem"
+    }
+}
