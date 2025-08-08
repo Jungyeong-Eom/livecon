@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+]#!/usr/bin/env python3
 """
 서버-클라이언트 통합 테스트 스크립트
 GUI 없이 콜백 시스템이 제대로 작동하는지 확인
