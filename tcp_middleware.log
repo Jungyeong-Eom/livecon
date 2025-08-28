@@ -1,0 +1,19 @@
+2025-08-08 10:54:53,611 - __main__ - INFO - 해양수산물 운송 TCP 미들웨어 시작
+2025-08-08 10:54:53,618 - __main__ - ERROR - 데이터베이스 오류: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+2025-08-08 10:54:53,618 - __main__ - ERROR - 데이터베이스 연결 실패: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+2025-08-08 10:54:53,618 - __main__ - ERROR - 서비스 시작 실패: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+2025-08-08 10:54:53,618 - __main__ - INFO - 미들웨어 서비스 중지 중...
+2025-08-08 10:54:53,618 - __main__ - INFO - 미들웨어 서비스 중지 완료
+2025-08-08 10:54:55,029 - __main__ - INFO - 해양수산물 운송 TCP 미들웨어 시작
+2025-08-08 10:54:55,033 - __main__ - ERROR - 데이터베이스 오류: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+2025-08-08 10:54:55,033 - __main__ - ERROR - 데이터베이스 연결 실패: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+2025-08-08 10:54:55,033 - __main__ - ERROR - 서비스 시작 실패: (1045, "Access denied for user 'root'@'localhost' (using password: NO)")
+2025-08-08 10:54:55,033 - __main__ - INFO - 미들웨어 서비스 중지 중...
+2025-08-08 10:54:55,033 - __main__ - INFO - 미들웨어 서비스 중지 완료
+2025-08-27 18:14:00,161 - __main__ - INFO - 해양수산물 운송 TCP 미들웨어 시작
+2025-08-27 18:14:00,225 - __main__ - INFO - 데이터베이스 연결 성공
+2025-08-27 18:14:00,226 - __main__ - INFO - TCP 서버 시작: localhost:9999
+2025-08-28 18:29:43,467 - __main__ - INFO - 미들웨어 서비스 중지 중...
+2025-08-28 18:29:43,468 - __main__ - INFO - TCP 서버 중지
+2025-08-28 18:29:43,468 - __main__ - INFO - TCP 서버 중지
+2025-08-28 18:29:43,469 - __main__ - INFO - 미들웨어 서비스 중지 완료

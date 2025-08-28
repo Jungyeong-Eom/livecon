@@ -1,43 +1,55 @@
-import sys
-import os
+#!/usr/bin/env python3
 import socket
+import json
+import random
 import time
+from datetime import datetime
 
-# 현재 파일의 디렉토리에서 상위 디렉토리를 Python 경로에 추가
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+SERVER_HOST = 'localhost'
+SERVER_PORT = 9999
 
-from node_module.rsa_utils import load_public_key, encrypt
-from node_module.generate_packet import generate_random_packet 
+DEVICE_IDS = ["DEV001", "DEV002", "DEV003", "SHIP_A1", "CONTAINER_B2"]
+SENSOR_TYPES = {
+    "TEMP": {"min": -5, "max": 35, "type_id": 1},
+    "DO": {"min": 18, "max": 23, "type_id": 2},
+    "WTR_TEMP": {"min": 0, "max": 30, "type_id": 3},
+}
+LOCATIONS = ["Container_A1", "Container_A2", "Hold_1", "Hold_2"]
 
-SERVER_ADDRESS = 'localhost'
-SERVER_PORT = 12347
+def generate_sensor_data():
+    device_id = random.choice(DEVICE_IDS)
+    sensors = []
+    for name, cfg in SENSOR_TYPES.items():
+        value = round(random.uniform(cfg["min"], cfg["max"]), 2)
+        sensors.append({
+            "sensor_id": f"{name}_{random.randint(1,99):03d}",
+            "value_type_id": cfg["type_id"],
+            "value": value,
+            "location": random.choice(LOCATIONS),
+            "alarm_state": 0,
+            "error_state": 0
+        })
+    return {
+        "device_id": device_id,
+        "timestamp": datetime.now().isoformat(),
+        "sensors": sensors
+    }
 
-# 현재 실행 위치에 관계없이 올바른 경로 설정
-if os.path.basename(os.getcwd()) == 'node':
-    # node 디렉토리에서 실행 중
-    PUBLIC_KEY_PATH = 'public.pem'
-else:
-    # 루트 디렉토리에서 실행 중
-    PUBLIC_KEY_PATH = 'node/public.pem'
+def send_to_server(packet):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect((SERVER_HOST, SERVER_PORT))
+            sock.sendall(json.dumps(packet).encode('utf-8'))
+            response = sock.recv(1024)
+            print(f"서버 응답: {response.decode('utf-8').strip()}")
+    except Exception as e:
+        print(f"서버 전송 실패: {e}")
 
-# 공개 키 로드
-public_key = load_public_key(PUBLIC_KEY_PATH)
+def main():
+    while True:
+        packet = generate_sensor_data()
+        send_to_server(packet)
+        time.sleep(2)  # 2초마다 전송
 
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect((SERVER_ADDRESS, SERVER_PORT))
-
-try:
-    while True:  
-        packet = generate_random_packet()
-        encrypted_packet = encrypt(packet, public_key)
-        client_socket.sendall(encrypted_packet)
-        print(f"암호화된 패킷 전송 완료 (길이: {len(encrypted_packet)} 바이트)")
-        time.sleep(10)
-except KeyboardInterrupt:
-    client_socket.close()
-    print("\n클라이언트 종료 요청됨")
-finally:
-    client_socket.close()
+if __name__ == "__main__":
+    main()

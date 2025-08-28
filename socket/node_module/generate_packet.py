@@ -1,34 +1,34 @@
+# node_module/generate_packet.py
 import random
-import time
-from datetime import datetime
+import struct
+
 from .geohash_encode import geohash_encode
 
-def generate_random_packet() -> bytes:
-    STX = 0x24
-    ETX = 0x5C
-    ID = 1234
-    TEMP = int(random.uniform(15.0, 35.0) * 10)
-    O2 = int(random.uniform(18.0, 25.0) * 100)
-    WTR_TEMP = int(random.uniform(15.0, 35.0) * 10)
-    LOC = {"lat": random.uniform(-90.0, 90.0), "lon": random.uniform(-180.0, 180.0)}
-    now = datetime.now()
 
-    packet = bytearray()
-    packet.append(STX)
-    packet += ID.to_bytes(2, 'big')
-    packet += (32).to_bytes(3, 'big')
-    packet += TEMP.to_bytes(2, 'big')
-    packet += O2.to_bytes(2, 'big')
-    packet += WTR_TEMP.to_bytes(2, 'big')
-    packet += geohash_encode(LOC["lat"], LOC["lon"], precision=10).encode('ascii')
-    packet += now.year.to_bytes(2, 'big')
-    packet += now.month.to_bytes(1, 'big')
-    packet += now.day.to_bytes(1, 'big')
-    packet += now.hour.to_bytes(1, 'big')
-    packet += now.minute.to_bytes(1, 'big')
-    packet += now.second.to_bytes(1, 'big')
-    checksum = sum(packet[1:]) & 0xFFFF
-    packet += checksum.to_bytes(2, 'big')
-    packet.append(ETX)
+def generate_packet(device_id: int):
+    """
+    센서 패킷 생성 예시
+    :param device_id: 센서 ID
+    :return: bytes
+    """
+    temp = random.randint(-40, 125)  # 온도
+    do = random.randint(0, 6000)     # DO
+    wtr_temp = random.randint(0, 1000) # 수온
+    lat, lon = 37.5665, 126.9780
+    loc_bytes = geohash_encode(lat, lon)
 
-    return bytes(packet)
+    # 간단한 패킷 구조 예시
+    packet = struct.pack(
+        '>B H I H H H 10s B B B B B H B',
+        36,          # STX, 예시
+        device_id,   # ID
+        32,          # 길이
+        temp,
+        do,
+        wtr_temp,
+        loc_bytes,
+        23, 8, 15, 12, 30,  # YYYY-MM-DD HH:MM
+        1234,         # 체크섬 예시
+        92            # ETX '\'
+    )
+    return packet
