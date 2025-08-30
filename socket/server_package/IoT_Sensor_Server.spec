@@ -6,7 +6,7 @@ a = Analysis(
     pathex=['.'],
     binaries=[],
     datas=[('server_module', 'server_module')],
-    hiddenimports=['server_module', 'server_module.rsa_utils', 'server_module.parsing', 'server_module.sql_utils', 'server_module.checksum', 'server_module.geohash_decode', 'pymysql', 'Crypto.PublicKey.RSA', 'Crypto.Cipher.PKCS1_OAEP'],
+    hiddenimports=['server_module', 'server_module.console_manager', 'server_module.console_interface', 'server_module.database_manager', 'server_module.crypto_manager', 'server_module.process_manager', 'server_module.server_core', 'server_module.client_manager', 'server_module.connection_manager', 'server_module.alarm_manager', 'server_module.sensor_monitor', 'server_module.packet_parser', 'pymysql', 'Crypto.PublicKey.RSA', 'Crypto.Cipher.PKCS1_OAEP'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,4 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['C:\\git_repo\\socket\\server_package\\server_icon.ico'],
 )

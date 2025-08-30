@@ -4,8 +4,7 @@
         "port": 12351
     },
     "client": {
-        "sensor_id": "SENSOR_001",
-        "send_interval": 3,
-        "public_key_path": "public.pem"
+        "device_id": "device001",
+        "send_interval": 10
     }
 }

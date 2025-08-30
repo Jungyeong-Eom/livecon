@@ -1,223 +1,512 @@
-# IoT Sensor Data Collection System / IoT 센서 데이터 수집 시스템
+# LIVECON - 활어 수송 컨테이너 모니터링 시스템
 
-## English
+![License](https://img.shields.io/badge/license-Private-red)
+![Python](https://img.shields.io/badge/python-3.8+-blue)
+![Security](https://img.shields.io/badge/security-ECDHE%20%2B%20PFS-green)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 
-### Overview
-This system is an encrypted IoT sensor data collection system that enables secure communication between IoT sensors and a central server. It uses RSA encryption for secure data transmission and MySQL for data persistence.
+**ECDHE 암호화 기반 활어 수송 컨테이너 실시간 모니터링 시스템**
 
-### Key Features
-- **Encrypted Communication**: All sensor data transmission uses RSA-2048 encryption
-- **Data Integrity**: Packet integrity verification using checksums
-- **Sensor Authentication**: Validation through registered sensor IDs
-- **Input Validation**: Comprehensive validation for all sensor values (temperature ranges, timestamp verification)
-- **Location Encoding**: GPS coordinates encoded in geohash format
-- **Real-time Processing**: 10-second interval sensor data collection
+## 시스템 개요
 
-### Architecture Components
+LIVECON(Live Container)은 활어 수송 컨테이너의 실시간 추적을 위한 전문 IoT 모니터링 시스템입니다. 수온, 용존산소 농도, 컨테이너 위치를 지속적으로 모니터링하여 활어 운송 중 최적 조건을 보장하며, Perfect Forward Secrecy를 지원하는 엔터프라이즈급 암호화 보안을 특징으로 합니다.
 
-**Server Side (`server/` and `server_module/`):**
-- `server.py` - Main TCP server handling encrypted sensor data
-- `server_app.py` - PyQt5 GUI application for server
-- `parsing.py` - 32-byte sensor packet parsing with validation
-- `sql_utils.py` - MySQL database operations for sensor data storage
-- `rsa_utils.py` - RSA key generation, encryption/decryption utilities
-- `checksum.py` - Packet integrity verification
-- `geohash_decode.py` - Geohash location data decoding
+### 주요 기능
 
-**Client Side (`node/` and `node_module/`):**
-- `client.py` - Sensor simulator that generates and transmits encrypted data
-- `generate_packet.py` - 32-byte sensor data packet generation
-- `geohash_encode.py` - GPS coordinate encoding to geohash format
-- `rsa_utils.py` - Client-side RSA encryption utilities
+- **활어 운송 모니터링**: 실시간 수질 및 환경 추적
+- **수질 관리**: 용존산소, 수온, pH 모니터링
+- **GPS 추적**: 실시간 컨테이너 위치 및 운송 경로 모니터링
+- **위험 상황 알림**: 위험한 조건에 대한 즉각적인 알림
+- **보안 통신**: ECDHE + Ed25519 + ChaCha20-Poly1305 암호화
+- **완전 전방 보안**: 과거 통신 내용의 보안 보장
+- **데이터 로깅**: 완전한 운송 이력 및 조건 기록
+- **휴대 가능한 배포**: 운송 차량용 독립 실행 파일
 
-### Data Flow
-1. Server generates RSA key pair on startup
-2. Client loads public key and generates sensor packets every 10 seconds
-3. Packet contents: sensor ID, temperature, dissolved oxygen, water temperature, GPS location (geohash), timestamp, checksum
-4. Client encrypts packet with RSA and transmits via TCP to server
-5. Server decrypts, validates, parses packet and stores in MySQL database
-6. Server validates sensor ID against registered sensors in database
+## 아키텍처
 
-### Database Schema
-The system requires a MySQL database (`livecon_db`) with the following tables:
-- `sensor_info` - Contains registered sensor IDs
-- `sensor_result` - Stores sensor measurements with location and timestamps
-
-### Installation and Execution
-
-#### Running with Python
-
-**Server Installation and Execution:**
-```bash
-# Install dependencies
-python server/install.py
-
-# Run server
-python server/server.py
+```
+┌─────────────────────────┐    ECDHE + ChaCha20    ┌──────────────────────┐
+│     활어 운송 탱크      │◄──────────────────────►│    LIVECON 서버      │
+│                         │    Perfect Forward     │                      │
+│  수온                   │       Secrecy          │ • 컨테이너 모니터    │
+│  용존산소               │                        │ • 알림 관리자        │
+│  수질                   │                        │ • 경로 추적          │
+│  GPS 위치               │                        │ • 어류 안전 확인     │
+│  실시간 데이터          │                        │ • 응급 대응          │
+└─────────────────────────┘                        └──────────────────────┘
+                                                              │
+                                                   ┌──────────▼──────────┐
+                                                   │    MySQL 데이터베이스│
+                                                   │                     │
+                                                   │ • 운송 기록         │
+                                                   │ • 수질 로그         │
+                                                   │ • 어류 건강 데이터  │
+                                                   │ • 경로 이력         │
+                                                   │ • 비상 알림         │
+                                                   └─────────────────────┘
 ```
 
-**Client Installation and Execution (Sensor Simulator):**
-```bash
-# Install dependencies
-python node/install.py
+## 보안 기능
 
-# Run client
-python node/client.py
+### 암호화 구현
+
+| 구성 요소 | 알고리즘 | 목적 |
+|-----------|-----------|---------|
+| **키 교환** | X25519 ECDHE | 임시 키 협상 |
+| **인증** | Ed25519 | 서버 신원 확인 |
+| **암호화** | ChaCha20-Poly1305 | AEAD 패킷 암호화 |
+| **전방 보안** | 세션 격리 | 과거 통신 보호 |
+
+### 보안 아키텍처
+
+```
+어류 탱크 센서 → ECDHE 키 교환 → ChaCha20-Poly1305 → 운송 관제센터
+                        ↓
+                 Ed25519 인증
+                        ↓
+                완전 전방 보안
 ```
 
-#### Running as .exe Files
+## 데이터베이스 스키마
 
-**Complete Build (Recommended):**
-```bash
-python build_all.py
-```
-After build completion, run the `.exe` files in the `release/` folder
+### 1. device_info 테이블
+**목적**: 탱크 장치 인증 및 등록
+- `device_id` (VARCHAR) - 어류 탱크 장치 식별자 (예: "device001")
+- 추가 인증 및 장치 메타데이터 필드
 
-**Individual Build:**
-```bash
-# Build server only
-python server/build_server.py
+### 2. sensor_info 테이블  
+**목적**: 어류 탱크 센서 등록 및 알람 임계값 구성
+- `sensor_id` (VARCHAR) - 고유 센서 식별자
+- `device_id` (VARCHAR) - device_info 테이블 참조
+- `sensor_type_id` (INT) - 센서 유형: 0=온도센서, 1=수온센서, 2=용존산소센서
+- `alarm_min` (DECIMAL) - 알람 발생 하한값
+- `alarm_max` (DECIMAL) - 알람 발생 상한값
+- `sensor_min` (DECIMAL) - 센서 물리적 최소 측정 범위
+- `sensor_max` (DECIMAL) - 센서 물리적 최대 측정 범위
+- `resolution` (DECIMAL) - 센서 측정 해상도/정밀도
+- `sensing_period` (INT) - 데이터 수집 간격 (초)
+- `transfer_period` (INT) - 데이터 전송 간격 (초)
 
-# Build client only
-python node/build_client.py
-```
+### 3. sensor_result 테이블
+**목적**: 시계열 수질 측정값 및 센서 데이터 저장
+- `result_id` (VARCHAR(20)) - 고유 결과 식별자
+- `device_id` (VARCHAR) - 패킷의 장치 식별자
+- `sensor_id` (VARCHAR) - sensor_info 테이블의 실제 센서 ID
+- `value_type_id` (INT) - 값 유형: 1=온도, 2=용존산소, 3=수온
+- `sensor_value` (DECIMAL) - 측정된 센서 값
+- `alarm_state` (INT) - 알람 상태 (0=정상, >0=알람_유형_ID)
+- `error_state` (INT) - 오류 상태 (0=정상, 1=오류 발생)
+- `location` (VARCHAR) - GPS 좌표 "위도,경도" 형식
+- `measured_at` (DATETIME) - 측정 타임스탬프
 
-**Execution Order:**
-1. Run `IoT_Sensor_Server.exe` (server)
-2. Run `IoT_Sensor_Client.exe` (client)
+### 4. alarm_log 테이블
+**목적**: 어류 안전 알림 및 위험 조건 위반 기록
+- `alarm_id` (VARCHAR(20)) - 고유 알람 식별자
+- `alarmed_at` (DATETIME) - 알람 발생 타임스탬프
+- `sensor_id` (VARCHAR) - 연관된 센서 식별자
+- `alarm_type_id` (INT) - 알람 유형 코드
+- `alarm_log` (TEXT) - 상세 알람 메시지
 
-### File Structure
-```
-server/
-├── server.py           # Main TCP server (port 12346)
-├── server_app.py       # GUI application
-└── private.pem         # RSA private key
+### 5. raw_packet_log 테이블
+**목적**: 디버깅 및 감사를 위한 운송 모니터링 패킷 저장
+- `packet_id` (VARCHAR(20)) - 고유 패킷 식별자
+- `device_id` (VARCHAR) - 장치 식별자 (nullable)
+- `received_at` (DATETIME) - 패킷 수신 타임스탬프
+- `packet_log` (TEXT) - 원시 패킷의 16진수 표현
+- `parse_success` (TINYINT) - 파싱 성공 플래그 (1=성공, 0=실패)
 
-node/
-├── client.py           # Sensor client simulator
-└── public.pem          # RSA public key
+## 32바이트 패킷 구조
 
-server_module/          # Server utilities
-├── parsing.py          # 32-byte packet parser
-├── sql_utils.py        # Database operations
-├── rsa_utils.py        # Encryption utilities
-├── checksum.py         # Packet verification
-└── geohash_decode.py   # Location decoding
+| 바이트 위치 | 필드 | 크기 | 데이터 타입 | 설명 | 검증 규칙 |
+|-------------|------|------|-------------|------|----------|
+| 0 | STX | 1바이트 | UINT8 | 시작 마커 | 0x24 ('$')이어야 함 |
+| 1-2 | 장치 ID | 2바이트 | UINT16 (Big Endian) | 장치 숫자 ID | "device{ID:03d}" 형식으로 변환 |
+| 3-5 | 길이 | 3바이트 | UINT24 (Big Endian) | 패킷 길이 | 32여야 함 |
+| 6-7 | 온도 | 2바이트 | UINT16 (Big Endian) | 대기 온도 × 10 | 범위: -400~1250 (-40.0°C~125.0°C) |
+| 8-9 | 용존산소 | 2바이트 | UINT16 (Big Endian) | DO × 100 | 범위: 0~6000 (0.0~60.0 mg/L) |
+| 10-11 | 수온 | 2바이트 | UINT16 (Big Endian) | 수온 × 10 | 범위: 0~1000 (0.0°C~100.0°C) |
+| 12-21 | GPS 위치 | 10바이트 | ASCII | 지오해시 문자열 | Base32 인코딩 (정밀도=10) |
+| 22-23 | 년도 | 2바이트 | UINT16 (Big Endian) | 년도 | 범위: 2000~2099 |
+| 24 | 월 | 1바이트 | UINT8 | 월 | 범위: 1~12 |
+| 25 | 일 | 1바이트 | UINT8 | 일 | 범위: 1~31 |
+| 26 | 시 | 1바이트 | UINT8 | 시 | 범위: 0~23 |
+| 27 | 분 | 1바이트 | UINT8 | 분 | 범위: 0~59 |
+| 28 | 초 | 1바이트 | UINT8 | 초 | 범위: 0~59 |
+| 29-30 | 체크섬 | 2바이트 | UINT16 (Big Endian) | CRC16 체크섬 | 1-28바이트 합, 0xFFFF로 마스킹 |
+| 31 | ETX | 1바이트 | UINT8 | 종료 마커 | 0x5C ('\')이어야 함 |
 
-node_module/            # Client utilities
-├── generate_packet.py  # Packet generation
-├── geohash_encode.py   # Location encoding
-└── rsa_utils.py        # Client encryption
-```
+## 활어 운송 안전 임계값
+
+### 환경 한계
+- **대기 온도**: -10°C~40°C (운송 환경)
+- **수온**: 5°C~30°C (어종별 의존)
+- **용존산소**: 4-15 mg/L (어류 생존에 중요)
+- **온도 안정성**: 최대 ±3°C 변동
+
+### 응급 대응 트리거
+- **위험 용존산소 알림**: < 4.0 mg/L (즉시 대응 필요)
+- **온도 충격**: > ±10°C 급변
+- **센서 오프라인**: > 5분간 데이터 없음
+- **GPS 신호 손실**: 위치 추적 중단
+
+## 사용 사례
+
+- **활어 운송**: 양식업 운송 작업 중 실시간 모니터링
+- **양식업**: 상업적 어류 양식 및 유통 물류
+- **어시장 공급망**: 양식장에서 시장까지 품질 유지
+- **응급 대응**: 장비 고장이나 위험 조건에 대한 즉각적인 알림
+- **규정 준수**: 식품 안전 및 운송 규정을 위한 자동 로깅
+- **연구 응용**: 어류 운송 최적화 및 스트레스 감소 연구
 
 ---
 
-## 한국어
+# LIVECON - Live Fish Transport Container Monitoring System
 
-### 개요
-이 시스템은 IoT 센서와 중앙 서버 간의 암호화된 통신을 통한 센서 데이터 수집 시스템입니다. 안전한 데이터 전송을 위해 RSA 암호화를 사용하고 데이터 지속성을 위해 MySQL을 사용합니다.
+![License](https://img.shields.io/badge/license-Private-red)
+![Python](https://img.shields.io/badge/python-3.8+-blue)
+![Security](https://img.shields.io/badge/security-ECDHE%20%2B%20PFS-green)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 
-### 핵심 기능
-- **암호화된 통신**: 모든 센서 데이터 전송에 RSA-2048 암호화 사용
-- **데이터 무결성**: 체크섬을 사용한 패킷 무결성 검증
-- **센서 인증**: 등록된 센서 ID 검증을 통한 센서 인증
-- **입력 검증**: 모든 센서 값에 대한 종합적인 검증 (온도 범위, 타임스탬프 검증)
-- **위치 인코딩**: 지오해시 형식으로 GPS 좌표 인코딩
-- **실시간 처리**: 10초 간격으로 센서 데이터 수집
+**Real-time monitoring system for live fish transport containers with enterprise-grade ECDHE encryption**
 
-### 아키텍처 구성 요소
+## System Overview
 
-**서버 측 (`server/` 및 `server_module/`):**
-- `server.py` - 암호화된 센서 데이터를 처리하는 메인 TCP 서버
-- `server_app.py` - 서버용 PyQt5 GUI 애플리케이션
-- `parsing.py` - 검증을 포함한 32바이트 센서 패킷 파싱
-- `sql_utils.py` - 센서 데이터 저장을 위한 MySQL 데이터베이스 연산
-- `rsa_utils.py` - RSA 키 생성, 암호화/복호화 유틸리티
-- `checksum.py` - 패킷 무결성 검증
-- `geohash_decode.py` - 지오해시 위치 데이터 디코딩
+LIVECON (Live Container) is a specialized IoT monitoring system designed for real-time tracking of live fish transport containers. The system ensures optimal conditions for fish transport by continuously monitoring water temperature, dissolved oxygen levels, and container location, featuring enterprise-grade cryptographic security with Perfect Forward Secrecy.
 
-**클라이언트 측 (`node/` 및 `node_module/`):**
-- `client.py` - 암호화된 데이터를 생성하고 전송하는 센서 시뮬레이터
-- `generate_packet.py` - 32바이트 센서 데이터 패킷 생성
-- `geohash_encode.py` - GPS 좌표를 지오해시 형식으로 인코딩
-- `rsa_utils.py` - 클라이언트 측 RSA 암호화 유틸리티
+### Key Features
 
-### 데이터 플로우
-1. 서버가 시작 시 RSA 키 쌍을 생성
-2. 클라이언트가 공개 키를 로드하고 10초마다 센서 패킷을 생성
-3. 패킷 내용: 센서 ID, 온도, 용존산소, 수온, GPS 위치(지오해시), 타임스탬프, 체크섬
-4. 클라이언트가 RSA로 패킷을 암호화하여 TCP를 통해 서버로 전송
-5. 서버가 패킷을 복호화, 검증, 파싱하여 MySQL 데이터베이스에 저장
-6. 서버가 데이터베이스에 등록된 센서에 대해 센서 ID를 검증
+- **Live Fish Transport Monitoring**: Real-time water quality and environmental tracking
+- **Water Quality Control**: Dissolved oxygen, temperature, and pH monitoring
+- **GPS Tracking**: Real-time container location and transport route monitoring
+- **Critical Alerts**: Immediate notifications for dangerous conditions
+- **Secure Communication**: ECDHE + Ed25519 + ChaCha20-Poly1305 encryption
+- **Perfect Forward Secrecy**: Past communications remain secure
+- **Data Logging**: Complete transport history and condition records
+- **Portable Deployment**: Standalone executables for transport vehicles
 
-### 데이터베이스 스키마
-시스템은 다음 테이블을 가진 MySQL 데이터베이스(`livecon_db`)를 필요로 합니다:
-- `sensor_info` - 등록된 센서 ID들을 포함
-- `sensor_result` - 위치와 타임스탬프가 포함된 센서 측정값들을 저장
+## Architecture
 
-### 설치 및 실행
+```
+┌─────────────────────────┐    ECDHE + ChaCha20    ┌──────────────────────┐
+│  Fish Transport Tanks   │◄──────────────────────►│    LIVECON Server    │
+│                         │    Perfect Forward     │                      │
+│  Water Temperature      │       Secrecy          │ • Container Monitor  │
+│  Dissolved Oxygen       │                        │ • Alert Manager      │
+│  Water Quality          │                        │ • Route Tracking     │
+│  GPS Location           │                        │ • Fish Safety Check  │
+│  Real-time Data         │                        │ • Emergency Response │
+└─────────────────────────┘                        └──────────────────────┘
+                                                              │
+                                                   ┌──────────▼──────────┐
+                                                   │    MySQL Database   │
+                                                   │                     │
+                                                   │ • Transport Records │
+                                                   │ • Water Quality Log │
+                                                   │ • Fish Health Data  │
+                                                   │ • Route History     │
+                                                   │ • Emergency Alerts  │
+                                                   └─────────────────────┘
+```
 
-#### Python으로 실행하기
+## Security Features
 
-**서버 설치 및 실행:**
+### Cryptographic Implementation
+
+| Component | Algorithm | Purpose |
+|-----------|-----------|---------|
+| **Key Exchange** | X25519 ECDHE | Ephemeral key agreement |
+| **Authentication** | Ed25519 | Server identity verification |
+| **Encryption** | ChaCha20-Poly1305 | AEAD packet encryption |
+| **Forward Secrecy** | Session isolation | Past communication protection |
+
+### Security Architecture
+
+```
+Fish Tank Sensor → ECDHE Key Exchange → ChaCha20-Poly1305 → Transport Control Center
+                          ↓
+                   Ed25519 Authentication
+                          ↓
+                  Perfect Forward Secrecy
+```
+
+## Database Schema
+
+### 1. device_info Table
+**Purpose**: Tank device authentication and registration
+- `device_id` (VARCHAR) - Fish tank device identifier (format: "device001")
+- Additional authentication and device metadata fields
+
+### 2. sensor_info Table  
+**Purpose**: Fish tank sensor registry and configuration with alarm thresholds
+- `sensor_id` (VARCHAR) - Unique sensor identifier
+- `device_id` (VARCHAR) - Reference to device_info table
+- `sensor_type_id` (INT) - Sensor type: 0=temp_sensor, 1=wtr_temp_sensor, 2=do_sensor
+- `alarm_min` (DECIMAL) - Lower threshold for alarm triggering
+- `alarm_max` (DECIMAL) - Upper threshold for alarm triggering  
+- `sensor_min` (DECIMAL) - Physical sensor minimum measurement range
+- `sensor_max` (DECIMAL) - Physical sensor maximum measurement range
+- `resolution` (DECIMAL) - Sensor measurement resolution/precision
+- `sensing_period` (INT) - Data collection interval (seconds)
+- `transfer_period` (INT) - Data transmission interval (seconds)
+
+### 3. sensor_result Table
+**Purpose**: Time-series water quality measurements and sensor data storage
+- `result_id` (VARCHAR(20))` - Unique result identifier
+- `device_id` (VARCHAR) - Device identifier from packet
+- `sensor_id` (VARCHAR) - Actual sensor ID from sensor_info table
+- `value_type_id` (INT) - Value type: 1=temp, 2=do, 3=wtr_temp
+- `sensor_value` (DECIMAL) - Measured sensor value
+- `alarm_state` (INT) - Alarm status (0=normal, >0=alarm_type_id)
+- `error_state` (INT) - Error status (0=normal, 1=error occurred)
+- `location` (VARCHAR) - GPS coordinates in "latitude,longitude" format  
+- `measured_at` (DATETIME) - Measurement timestamp
+
+### 4. alarm_log Table
+**Purpose**: Fish safety alerts and critical condition violations
+- `alarm_id` (VARCHAR(20)) - Unique alarm identifier
+- `alarmed_at` (DATETIME) - Alarm occurrence timestamp
+- `sensor_id` (VARCHAR) - Associated sensor identifier
+- `alarm_type_id` (INT) - Alarm type code
+- `alarm_log` (TEXT) - Detailed alarm message
+
+### 5. raw_packet_log Table
+**Purpose**: Transport monitoring packet storage for debugging and audit
+- `packet_id` (VARCHAR(20)) - Unique packet identifier
+- `device_id` (VARCHAR) - Device identifier (nullable)
+- `received_at` (DATETIME) - Packet reception timestamp
+- `packet_log` (TEXT) - Hexadecimal representation of raw packet
+- `parse_success` (TINYINT) - Parsing success flag (1=success, 0=failed)
+
+## 32-Byte Packet Structure
+
+| Byte Position | Field | Size | Data Type | Description | Validation Rules |
+|---------------|-------|------|-----------|-------------|------------------|
+| 0 | STX | 1 byte | UINT8 | Start marker | Must be 0x24 ('$') |
+| 1-2 | Device ID | 2 bytes | UINT16 (Big Endian) | Device numeric ID | Converted to "device{ID:03d}" format |
+| 3-5 | Length | 3 bytes | UINT24 (Big Endian) | Packet length | Should be 32 |
+| 6-7 | Temperature | 2 bytes | UINT16 (Big Endian) | Air temp × 10 | Range: -400 to 1250 (-40.0°C to 125.0°C) |
+| 8-9 | Dissolved O₂ | 2 bytes | UINT16 (Big Endian) | DO × 100 | Range: 0 to 6000 (0.0 to 60.0 mg/L) |
+| 10-11 | Water Temp | 2 bytes | UINT16 (Big Endian) | Water temp × 10 | Range: 0 to 1000 (0.0°C to 100.0°C) |
+| 12-21 | GPS Location | 10 bytes | ASCII | Geohash string | Base32 encoded (precision=10) |
+| 22-23 | Year | 2 bytes | UINT16 (Big Endian) | Year | Range: 2000 to 2099 |
+| 24 | Month | 1 byte | UINT8 | Month | Range: 1 to 12 |
+| 25 | Day | 1 byte | UINT8 | Day | Range: 1 to 31 |
+| 26 | Hour | 1 byte | UINT8 | Hour | Range: 0 to 23 |
+| 27 | Minute | 1 byte | UINT8 | Minute | Range: 0 to 59 |
+| 28 | Second | 1 byte | UINT8 | Second | Range: 0 to 59 |
+| 29-30 | Checksum | 2 bytes | UINT16 (Big Endian) | CRC16 checksum | Sum of bytes 1-28, masked with 0xFFFF |
+| 31 | ETX | 1 byte | UINT8 | End marker | Must be 0x5C ('\') |
+
+## Fish Transport Safety Thresholds
+
+### Environmental Limits
+- **Ambient Temperature**: -10°C to 40°C (transport environment)
+- **Water Temperature**: 5°C to 30°C (species-dependent)
+- **Dissolved Oxygen**: 4-15 mg/L (critical for fish survival)
+- **Temperature Stability**: ±3°C variation maximum
+
+### Emergency Response Triggers
+- **Critical DO Alert**: < 4.0 mg/L (immediate response required)
+- **Temperature Shock**: > ±10°C sudden change
+- **Sensor Offline**: > 5 minutes without data
+- **GPS Signal Loss**: Location tracking interruption
+
+## Project Structure
+
+```
+socket/
+├── server_package/           # Server Components
+│   ├── server.py            # Main server entry point
+│   ├── requirements.txt     # Server dependencies
+│   ├── build_independent.py # Server build script
+│   └── server_module/       # Core server modules
+│       ├── server_core.py   # TCP server implementation
+│       ├── crypto_manager.py# ECDHE cryptographic operations
+│       ├── client_manager.py# Client connection lifecycle
+│       ├── console_interface.py # Admin console interface
+│       ├── database_manager.py  # MySQL operations
+│       ├── packet_parser.py     # 32-byte packet parsing
+│       ├── alarm_manager.py     # Threshold monitoring
+│       └── sensor_monitor.py    # Sensor health monitoring
+├── client_package/          # Tank Sensor Components  
+│   ├── client.py           # Fish tank sensor client
+│   ├── config.json         # Tank sensor configuration
+│   ├── requirements.txt    # Client dependencies
+│   ├── build_independent.py# Client build script
+│   └── node_module/        # Sensor modules
+│       ├── ecdhe_crypto.py # Client-side cryptography
+│       ├── generate_packet.py # Water quality packet creation
+│       └── geohash_encode.py  # GPS coordinate encoding
+└── test_icon_creation.py   # Icon generation test
+```
+
+## Quick Start
+
+### Prerequisites
+
+- **Python 3.8+**
+- **MySQL Server** (for server component)
+- **Network connectivity** between client and server
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd socket
+   ```
+
+2. **Server Setup**
+   ```bash
+   cd server_package
+   pip install -r requirements.txt
+   
+   # Configure MySQL database (see Configuration section)
+   python server.py
+   ```
+
+3. **Tank Sensor Setup**
+   ```bash
+   cd client_package
+   pip install -r requirements.txt
+   
+   # Edit config.json with server details and tank configuration
+   python client.py
+   ```
+
+### Build Standalone Executables
+
+**Server Build:**
 ```bash
-# 의존성 설치
-python server/install.py
-
-# 서버 실행
-python server/server.py
+cd server_package
+python build_independent.py
+# Generates: IoT_Sensor_Server.exe
 ```
 
-**클라이언트 설치 및 실행 (센서 시뮬레이터):**
+**Tank Sensor Build:**
 ```bash
-# 의존성 설치
-python node/install.py
-
-# 클라이언트 실행
-python node/client.py
+cd client_package  
+python build_independent.py
+# Generates: IoT_Sensor_Client.exe (Fish Tank Sensor)
 ```
 
-#### .exe 파일로 실행하기
+## Configuration
 
-**전체 빌드 (권장):**
-```bash
-python build_all.py
-```
-빌드 완료 후 `release/` 폴더의 `.exe` 파일들을 실행
+### Server Configuration
 
-**개별 빌드:**
-```bash
-# 서버만 빌드
-python server/build_server.py
+Configure MySQL database connection in your environment or `server.py`:
 
-# 클라이언트만 빌드  
-python node/build_client.py
+```python
+# Database settings
+DB_HOST = "localhost"
+DB_USER = "your_username" 
+DB_PASSWORD = "your_password"
+DB_NAME = "sensor_db"
 ```
 
-**실행 순서:**
-1. `IoT_Sensor_Server.exe` 실행 (서버)
-2. `IoT_Sensor_Client.exe` 실행 (클라이언트)
+### Fish Tank Sensor Configuration (`client_package/config.json`)
 
-### 파일 구조
+```json
+{
+    "server_host": "127.0.0.1",
+    "server_port": 9999,
+    "device_id": "tank001",
+    "interval": 5,
+    "sensor_config": {
+        "water_temp_range": [10, 25],
+        "do_range": [6, 12],
+        "ambient_temp_range": [5, 35]
+    },
+    "fish_transport": {
+        "species": "live_fish",
+        "container_capacity": "500L",
+        "critical_do_level": 4.0,
+        "max_temp_variation": 3.0
+    }
+}
 ```
-server/
-├── server.py           # 메인 TCP 서버 (포트 12346)
-├── server_app.py       # GUI 애플리케이션
-└── private.pem         # RSA 개인 키
 
-node/
-├── client.py           # 센서 클라이언트 시뮬레이터
-└── public.pem          # RSA 공개 키
+## Console Interface
 
-server_module/          # 서버 유틸리티
-├── parsing.py          # 32바이트 패킷 파서
-├── sql_utils.py        # 데이터베이스 연산
-├── rsa_utils.py        # 암호화 유틸리티
-├── checksum.py         # 패킷 검증
-└── geohash_decode.py   # 위치 디코딩
+The server provides a rich interactive console with comprehensive administrative commands:
 
-node_module/            # 클라이언트 유틸리티
-├── generate_packet.py  # 패킷 생성
-├── geohash_encode.py   # 위치 인코딩
-└── rsa_utils.py        # 클라이언트 암호화
-```
+### Core Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `status` | Transport monitoring status | `status` |
+| `sessions` | Tank sensor session management | `sessions --active --details` |
+| `clients` | Connected tank information | `clients tank001 --stats` |
+| `logs` | Fish transport logs | `logs --follow --grep "tank001"` |
+| `packets` | Water quality data inspection | `packets tank001 --follow --parsed` |
+| `stats` | Tank performance metrics | `stats --client tank001 --latency` |
+| `crypto` | Transport security information | `crypto` |
+
+### Monitoring Features
+
+- **Fish Safety Metrics**: Water quality parameters, response times, emergency alerts
+- **Transport Tracking**: Route monitoring, tank location updates, delivery status
+- **Critical Alerts**: Dissolved oxygen warnings, temperature fluctuations, equipment failures
+- **Performance Analysis**: Data transmission rates, sensor response times, connection stability
+
+## Use Cases
+
+- **Live Fish Transport**: Real-time monitoring during aquaculture transport operations
+- **Aquaculture Industry**: Commercial fish farming and distribution logistics
+- **Fish Market Supply Chain**: Maintaining quality from farm to market
+- **Emergency Response**: Immediate alerts for equipment failures or critical conditions
+- **Regulatory Compliance**: Automated logging for food safety and transport regulations
+- **Research Applications**: Fish transport optimization and stress reduction studies
+
+## System Requirements
+
+### Control Center Requirements
+- **OS**: Windows 10+ or Linux
+- **RAM**: 1GB+ recommended (multi-tank monitoring)
+- **Storage**: 500MB+ for application, 10GB+ for transport database
+- **Network**: Reliable internet connection for GPS tracking
+- **Database**: MySQL 5.7+ or MariaDB 10.2+
+
+### Fish Tank Sensor Requirements
+- **OS**: Windows 10+ or Linux (embedded systems compatible)
+- **RAM**: 256MB minimum
+- **Storage**: 50MB for sensor application
+- **Network**: 4G/WiFi connectivity for real-time data transmission
+- **Power**: 12V DC compatible (vehicle power systems)
+- **Sensors**: Water temperature, dissolved oxygen, GPS module
+
+## Contributing
+
+This is a specialized aquaculture monitoring system. For contributions:
+
+1. Follow existing code structure and patterns
+2. Maintain cryptographic security standards
+3. Understand fish transport safety requirements
+4. Test with realistic aquaculture scenarios
+5. Validate against fish survival thresholds
+
+## License
+
+This project is private/proprietary. Unauthorized reproduction or distribution is prohibited.
+
+## Support
+
+For technical support or questions about the LIVECON fish transport system:
+
+1. Check console interface `help` command for monitoring commands
+2. Review transport logs for water quality alerts
+3. Verify fish tank sensor connectivity and GPS tracking
+4. Monitor dissolved oxygen levels and temperature stability
+5. Confirm emergency alert notifications are functioning
+
+## Emergency Response
+
+**Critical Situations:**
+- **Low Dissolved Oxygen (< 4.0 mg/L)**: Immediate intervention required
+- **Temperature Fluctuation (> ±3°C)**: Check cooling/heating systems  
+- **GPS Signal Loss**: Verify location and restore connectivity
+- **Sensor Offline**: Check power and network connections
+
+---
+
+**LIVECON (Live Container)** - Secure fish transport monitoring with real-time safety alerts
