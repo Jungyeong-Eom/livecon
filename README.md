@@ -149,6 +149,408 @@ LIVECON(Live Container)은 활어 수송 컨테이너의 실시간 추적을 위
 - **센서 오프라인**: > 5분간 데이터 없음
 - **GPS 신호 손실**: 위치 추적 중단
 
+## 빠른 시작 가이드
+
+### 서버 실행 방법
+
+**1. 환경 설정**
+```bash
+# 데이터베이스 환경 변수 설정 (Windows)
+set DB_HOST=localhost
+set DB_USER=root
+set DB_PASSWORD=your_password
+set DB_NAME=livecon_db
+
+# Linux/Mac
+export DB_HOST=localhost
+export DB_USER=root
+export DB_PASSWORD=your_password
+export DB_NAME=livecon_db
+```
+
+**2. Python으로 서버 실행**
+```bash
+cd socket/server_package
+pip install -r requirements.txt
+python server.py
+```
+
+**3. 빌드된 실행파일로 서버 실행**
+```bash
+cd socket/server_package
+./IoT_Sensor_Server.exe
+```
+
+**4. 서버 시작 화면**
+```
+LIVECON IoT Server - ECDHE + Perfect Forward Secrecy
+Server: 127.0.0.1:9999 | Status: RUNNING
+
+=== System Status ===
+• Database: Connected (livecon_db)
+• Encryption: ECDHE + Ed25519 + ChaCha20-Poly1305
+• Sessions: 0 active
+• Clients: 0 connected
+
+Type 'help' for available commands.
+LIVECON> 
+```
+
+### 클라이언트 실행 방법
+
+**1. 설정 파일 수정**
+`socket/client_package/config.json`:
+```json
+{
+    "server_host": "127.0.0.1",
+    "server_port": 9999,
+    "device_id": "tank001",
+    "interval": 5,
+    "sensor_config": {
+        "water_temp_range": [18, 24],
+        "do_range": [8, 14],
+        "ambient_temp_range": [10, 30]
+    },
+    "fish_transport": {
+        "species": "live_fish",
+        "container_capacity": "500L",
+        "critical_do_level": 4.0,
+        "max_temp_variation": 3.0
+    }
+}
+```
+
+**2. Python으로 클라이언트 실행**
+```bash
+cd socket/client_package
+pip install -r requirements.txt
+python client.py
+```
+
+**3. 빌드된 실행파일로 클라이언트 실행**
+```bash
+cd socket/client_package
+./IoT_Sensor_Client.exe
+```
+
+**4. 클라이언트 실행 화면**
+```
+2024-08-30 12:30:15 iot-client[tank001]: Starting LIVECON fish tank sensor
+2024-08-30 12:30:15 iot-client[tank001]: Connecting to server 127.0.0.1:9999
+2024-08-30 12:30:16 iot-client[tank001]: ECDHE key exchange completed
+2024-08-30 12:30:16 iot-client[tank001]: Authentication successful
+2024-08-30 12:30:16 iot-client[tank001]: Sending sensor data every 5 seconds
+2024-08-30 12:30:16 iot-client[tank001]: Water: 22.5°C | DO: 11.2mg/L | GPS: 9q8yy1yvpz
+```
+
+## 빌드 방법
+
+### 서버 빌드
+```bash
+cd socket/server_package
+python build_independent.py
+```
+
+**빌드 결과:**
+- `IoT_Sensor_Server.exe` (약 15MB)
+- 모든 의존성 포함된 단일 실행파일
+- 외부 폴더 의존성 없음
+
+### 클라이언트 빌드
+```bash
+cd socket/client_package
+python build_independent.py
+```
+
+**빌드 결과:**
+- `IoT_Sensor_Client.exe` (약 15MB)
+- 모든 의존성 포함된 단일 실행파일
+- config.json 파일만 필요
+
+### 빌드 요구사항
+```bash
+pip install pyinstaller>=5.0
+pip install pillow>=8.0.0  # 아이콘 생성용 (선택사항)
+```
+
+## 콘솔 명령어 가이드
+
+### 기본 명령어
+
+**status** - 서버 상태 확인
+```
+LIVECON> status
+
+=== LIVECON Server Status ===
+Server: 127.0.0.1:9999 | Status: RUNNING
+Uptime: 2h 15m 33s
+Database: Connected (3ms latency)
+
+Active Sessions: 2
+├── device001 (192.168.1.100) - Active for 1h 30m
+└── device002 (192.168.1.101) - Active for 45m
+
+System Performance:
+• Total Packets: 1,247 (98.5% success rate)
+• Avg Response Time: 12ms
+• Memory Usage: 245MB
+```
+
+**sessions** - ECDHE 세션 관리
+```
+# 모든 세션 조회
+LIVECON> sessions
+Device ID       Created    Last Activity  Status    
+device001       14:30:15   14:35:20       ACTIVE    
+device002       14:45:10   14:50:25       ACTIVE    
+
+# 활성 세션 상세 조회
+LIVECON> sessions --active --details
+=== Active ECDHE Sessions (2) ===
+Device: device001
+  Address: 192.168.1.100:52341
+  Created: 2024-08-30 14:30:15
+  Duration: 1h 30m 45s
+  Packets: 1,080
+  Encryption: ChaCha20-Poly1305
+  Status: ACTIVE
+```
+
+**clients** - 연결된 클라이언트 정보
+```
+# 모든 클라이언트 조회
+LIVECON> clients
+Address            Device     Connected   Packets  Status
+192.168.1.100      device001  14:30:15    1,080    CONNECTED
+192.168.1.101      device002  14:45:10    543      CONNECTED
+
+# 특정 클라이언트 통계
+LIVECON> clients device001 --stats
+=== Client Details: device001 ===
+Address: 192.168.1.100:52341
+Connected: 2024-08-30 14:30:15 (1h 30m ago)
+
+Statistics:
+  Total Packets: 1,080
+  Successful: 1,063 (98.4%)
+  Failed: 17 (1.6%)
+  Alarms: 3
+  Errors: 2
+
+Recent Activity:
+  Last Packet: 2024-08-30 16:00:50
+  Water Temp: 23.2°C (Normal)
+  Dissolved O₂: 11.8 mg/L (Normal)
+  GPS: 9q8yy1yvpz
+```
+
+**logs** - 시스템 로그 조회
+```
+# 최근 로그 조회
+LIVECON> logs
+16:00:50 [INFO    ] [192.168.1.100] Sensor data received - Water: 23.2°C, DO: 11.8mg/L
+16:00:45 [INFO    ] [192.168.1.101] Sensor data received - Water: 24.1°C, DO: 10.5mg/L
+16:00:40 [WARNING ] [192.168.1.100] Water temperature approaching limit: 24.8°C
+
+# 특정 디바이스 실시간 로그
+LIVECON> logs --follow --grep "device001"
+16:01:05 [INFO    ] [device001] Sensor data received - Water: 23.4°C, DO: 11.9mg/L
+16:01:10 [INFO    ] [device001] Sensor data received - Water: 23.6°C, DO: 11.7mg/L
+16:01:15 [ALARM   ] [device001] Water temperature HIGH: 25.2°C (threshold: 25.0°C)
+^C (Ctrl+C로 중단)
+
+# 에러 로그만 조회
+LIVECON> logs --level ERROR --count 10
+16:00:35 [ERROR   ] [192.168.1.102] Connection timeout after 30 seconds
+15:58:22 [ERROR   ] [device003] Packet parsing failed: checksum mismatch
+15:55:10 [ERROR   ] [192.168.1.105] Authentication failed: invalid device ID
+```
+
+**packets** - 패킷 내용 검사
+```
+# 최근 패킷 조회
+LIVECON> packets --count 5
+Recent Packet Contents (5 packets):
+
+16:01:15 device001
+  STX: 0x24 | Device: 001 | Length: 32
+  Temperature: 24.5°C | Water: 23.2°C | DO: 11.8 mg/L
+  GPS: 9q8yy1yvpz (37.5665, 126.9780)
+  Time: 2024-08-30 16:01:15 | Checksum: 0x1A2B ✓
+
+# 실시간 패킷 모니터링
+LIVECON> packets device001 --follow --parsed
+Following packet contents for device 'device001'... (Press Ctrl+C to stop)
+
+16:01:20 device001 [PARSED]
+  Water Temperature: 23.4°C (Normal: 15-25°C)
+  Dissolved Oxygen: 11.9 mg/L (Normal: 10-12 mg/L)
+  Ambient Temperature: 24.2°C
+  Location: 9q8yy1yvpz (Seoul, South Korea)
+  Status: All parameters normal
+^C (Ctrl+C로 중단)
+
+# 원시 패킷 데이터
+LIVECON> packets device001 --raw --count 1
+Recent Packet Contents (1 packets):
+
+16:01:30 device001 [RAW]
+24 00 01 00 00 20 00 F5 04 AC 01 68 39 71 38 79 
+79 31 79 76 70 7A 07 E8 08 1E 10 01 1E 1A 2B 5C
+```
+
+**stats** - 성능 통계
+```
+# 전체 서버 통계
+LIVECON> stats
+=== Server Statistics ===
+  Total Packets: 2,156
+  Successful: 2,131 (98.8%)
+  Failed: 25 (1.2%)
+  Total Alarms: 8
+  Total Errors: 3
+
+Performance:
+  Avg Response Time: 11.5ms
+  Success Rate: 98.8%
+  Uptime: 3h 22m 15s
+
+# 특정 클라이언트 상세 통계
+LIVECON> stats --client device001 --latency
+=== Client Statistics: device001 ===
+  Total Packets: 1,205
+  Successful: 1,187 (98.5%)
+  Failed: 18 (1.5%)
+  Status: CONNECTED
+
+Packet Intervals (ms):
+  Min: 4,998.2ms
+  Max: 5,002.8ms
+  Average: 5,000.1ms
+  Median: 5,000.0ms
+
+Client Latency Statistics (ms):
+  Min: 8.2ms
+  Max: 45.1ms
+  Average: 12.3ms
+  95th Percentile: 18.7ms
+  99th Percentile: 28.4ms
+```
+
+**crypto** - 암호화 시스템 정보
+```
+LIVECON> crypto
+=== Cryptographic System Information ===
+
+Encryption Protocol: ECDHE + Ed25519 + ChaCha20-Poly1305
+├── Key Exchange: X25519 (Curve25519 ECDH)
+├── Authentication: Ed25519 (EdDSA signature)
+├── Encryption: ChaCha20-Poly1305 (AEAD)
+└── Forward Secrecy: Perfect (ephemeral keys)
+
+Server Identity:
+  Ed25519 Public Key: a1b2c3d4e5f6... (64 chars)
+  Key Fingerprint: SHA256:K7+MQ8bJhE...
+
+Active Sessions: 2
+├── device001: 128-bit session key, 1,205 packets encrypted
+└── device002: 128-bit session key, 623 packets encrypted
+
+Security Features:
+✓ Perfect Forward Secrecy enabled
+✓ Session key rotation every 1 hour
+✓ Anti-replay protection active
+✓ Cryptographic integrity verification
+```
+
+### 관리 명령어
+
+**clear** - 콘솔 화면 지우기
+```
+LIVECON> clear
+```
+
+**help** - 도움말 보기
+```
+LIVECON> help
+Available Commands:
+  status      show server status and overview
+  sessions    list ECDHE sessions [device_id] [--active] [--expired] [--details]
+  clients     show connected clients [device_id|address] [--logs] [--stats]
+  logs        display system logs [--level LEVEL] [--count N] [--grep PATTERN] [--follow]
+  packets     inspect client packet contents [device_id] [--follow] [--raw] [--parsed] [--count N]
+  stats       show statistics [device_id] [--latency] [--processing] [--details] [--client ID]
+  crypto      display cryptographic system information
+  clear       clear the console screen
+  stop        stop the server
+  restart     restart the server
+  exit        exit console (server keeps running)
+  shutdown    shutdown server and exit console
+  help        show this help message
+
+Usage examples:
+  clients device001 --logs          Show client details with logs
+  sessions --active --details       Show detailed active sessions
+  logs --level ERROR --count 50     Show last 50 error logs
+  logs --follow --grep 'device001'  Follow logs for specific device
+  stats --latency --processing      Show detailed performance stats
+  stats --client device001 --latency Show client latency statistics
+  packets device001 --follow --parsed   Follow parsed packets from specific device
+  packets --count 20 --raw          Show last 20 raw packets
+```
+
+**stop / shutdown** - 서버 종료
+```
+LIVECON> stop     # 서버 정지 (콘솔 유지)
+LIVECON> shutdown # 서버 종료 및 콘솔 종료
+```
+
+## 트러블슈팅
+
+### 일반적인 문제
+
+**1. 서버 시작 실패**
+```
+Error: [Errno 10048] Only one usage of each socket address is normally permitted
+```
+**해결:** 포트가 이미 사용 중입니다. 다른 포트 사용하거나 기존 프로세스 종료
+
+**2. 데이터베이스 연결 실패**
+```
+Database connection failed: Access denied for user 'root'@'localhost'
+```
+**해결:** 환경 변수 확인 (`DB_PASSWORD`, `DB_USER` 등)
+
+**3. 클라이언트 연결 실패**
+```
+iot-client[tank001]: Connection failed: Connection refused
+```
+**해결:** 서버 실행 상태 및 네트워크 연결 확인
+
+**4. 알람 발생 시 대응**
+```
+[ALARM] [device001] Water temperature HIGH: 25.2°C (threshold: 25.0°C)
+```
+**대응:** 즉시 냉각 시스템 점검, 운송 환경 온도 조절
+
+### 성능 최적화
+
+**메모리 사용량 확인:**
+```
+LIVECON> status  # 메모리 사용량 표시
+```
+
+**네트워크 최적화:**
+```json
+// config.json에서 전송 간격 조정
+{
+    "interval": 10,  // 5초 → 10초로 증가하여 트래픽 감소
+    "sensor_config": {
+        "critical_do_level": 4.0  // 중요 임계값 유지
+    }
+}
+```
+
 ## 사용 사례
 
 - **활어 운송**: 양식업 운송 작업 중 실시간 모니터링
@@ -448,6 +850,408 @@ The server provides a rich interactive console with comprehensive administrative
 - **Transport Tracking**: Route monitoring, tank location updates, delivery status
 - **Critical Alerts**: Dissolved oxygen warnings, temperature fluctuations, equipment failures
 - **Performance Analysis**: Data transmission rates, sensor response times, connection stability
+
+## Quick Start Guide
+
+### Server Execution
+
+**1. Environment Setup**
+```bash
+# Set database environment variables (Windows)
+set DB_HOST=localhost
+set DB_USER=root
+set DB_PASSWORD=your_password
+set DB_NAME=livecon_db
+
+# Linux/Mac
+export DB_HOST=localhost
+export DB_USER=root
+export DB_PASSWORD=your_password
+export DB_NAME=livecon_db
+```
+
+**2. Run Server with Python**
+```bash
+cd socket/server_package
+pip install -r requirements.txt
+python server.py
+```
+
+**3. Run Server with Built Executable**
+```bash
+cd socket/server_package
+./IoT_Sensor_Server.exe
+```
+
+**4. Server Startup Screen**
+```
+LIVECON IoT Server - ECDHE + Perfect Forward Secrecy
+Server: 127.0.0.1:9999 | Status: RUNNING
+
+=== System Status ===
+• Database: Connected (livecon_db)
+• Encryption: ECDHE + Ed25519 + ChaCha20-Poly1305
+• Sessions: 0 active
+• Clients: 0 connected
+
+Type 'help' for available commands.
+LIVECON> 
+```
+
+### Client Execution
+
+**1. Edit Configuration File**
+`socket/client_package/config.json`:
+```json
+{
+    "server_host": "127.0.0.1",
+    "server_port": 9999,
+    "device_id": "tank001",
+    "interval": 5,
+    "sensor_config": {
+        "water_temp_range": [18, 24],
+        "do_range": [8, 14],
+        "ambient_temp_range": [10, 30]
+    },
+    "fish_transport": {
+        "species": "live_fish",
+        "container_capacity": "500L",
+        "critical_do_level": 4.0,
+        "max_temp_variation": 3.0
+    }
+}
+```
+
+**2. Run Client with Python**
+```bash
+cd socket/client_package
+pip install -r requirements.txt
+python client.py
+```
+
+**3. Run Client with Built Executable**
+```bash
+cd socket/client_package
+./IoT_Sensor_Client.exe
+```
+
+**4. Client Execution Screen**
+```
+2024-08-30 12:30:15 iot-client[tank001]: Starting LIVECON fish tank sensor
+2024-08-30 12:30:15 iot-client[tank001]: Connecting to server 127.0.0.1:9999
+2024-08-30 12:30:16 iot-client[tank001]: ECDHE key exchange completed
+2024-08-30 12:30:16 iot-client[tank001]: Authentication successful
+2024-08-30 12:30:16 iot-client[tank001]: Sending sensor data every 5 seconds
+2024-08-30 12:30:16 iot-client[tank001]: Water: 22.5°C | DO: 11.2mg/L | GPS: 9q8yy1yvpz
+```
+
+## Build Instructions
+
+### Server Build
+```bash
+cd socket/server_package
+python build_independent.py
+```
+
+**Build Output:**
+- `IoT_Sensor_Server.exe` (~15MB)
+- Single executable with all dependencies
+- No external folder dependencies
+
+### Client Build
+```bash
+cd socket/client_package
+python build_independent.py
+```
+
+**Build Output:**
+- `IoT_Sensor_Client.exe` (~15MB)
+- Single executable with all dependencies
+- Only requires config.json file
+
+### Build Requirements
+```bash
+pip install pyinstaller>=5.0
+pip install pillow>=8.0.0  # For icon generation (optional)
+```
+
+## Console Commands Guide
+
+### Basic Commands
+
+**status** - Check server status
+```
+LIVECON> status
+
+=== LIVECON Server Status ===
+Server: 127.0.0.1:9999 | Status: RUNNING
+Uptime: 2h 15m 33s
+Database: Connected (3ms latency)
+
+Active Sessions: 2
+├── device001 (192.168.1.100) - Active for 1h 30m
+└── device002 (192.168.1.101) - Active for 45m
+
+System Performance:
+• Total Packets: 1,247 (98.5% success rate)
+• Avg Response Time: 12ms
+• Memory Usage: 245MB
+```
+
+**sessions** - ECDHE session management
+```
+# List all sessions
+LIVECON> sessions
+Device ID       Created    Last Activity  Status    
+device001       14:30:15   14:35:20       ACTIVE    
+device002       14:45:10   14:50:25       ACTIVE    
+
+# Show detailed active sessions
+LIVECON> sessions --active --details
+=== Active ECDHE Sessions (2) ===
+Device: device001
+  Address: 192.168.1.100:52341
+  Created: 2024-08-30 14:30:15
+  Duration: 1h 30m 45s
+  Packets: 1,080
+  Encryption: ChaCha20-Poly1305
+  Status: ACTIVE
+```
+
+**clients** - Connected client information
+```
+# List all clients
+LIVECON> clients
+Address            Device     Connected   Packets  Status
+192.168.1.100      device001  14:30:15    1,080    CONNECTED
+192.168.1.101      device002  14:45:10    543      CONNECTED
+
+# Client statistics
+LIVECON> clients device001 --stats
+=== Client Details: device001 ===
+Address: 192.168.1.100:52341
+Connected: 2024-08-30 14:30:15 (1h 30m ago)
+
+Statistics:
+  Total Packets: 1,080
+  Successful: 1,063 (98.4%)
+  Failed: 17 (1.6%)
+  Alarms: 3
+  Errors: 2
+
+Recent Activity:
+  Last Packet: 2024-08-30 16:00:50
+  Water Temp: 23.2°C (Normal)
+  Dissolved O₂: 11.8 mg/L (Normal)
+  GPS: 9q8yy1yvpz
+```
+
+**logs** - System log viewing
+```
+# View recent logs
+LIVECON> logs
+16:00:50 [INFO    ] [192.168.1.100] Sensor data received - Water: 23.2°C, DO: 11.8mg/L
+16:00:45 [INFO    ] [192.168.1.101] Sensor data received - Water: 24.1°C, DO: 10.5mg/L
+16:00:40 [WARNING ] [192.168.1.100] Water temperature approaching limit: 24.8°C
+
+# Real-time log following for specific device
+LIVECON> logs --follow --grep "device001"
+16:01:05 [INFO    ] [device001] Sensor data received - Water: 23.4°C, DO: 11.9mg/L
+16:01:10 [INFO    ] [device001] Sensor data received - Water: 23.6°C, DO: 11.7mg/L
+16:01:15 [ALARM   ] [device001] Water temperature HIGH: 25.2°C (threshold: 25.0°C)
+^C (Press Ctrl+C to stop)
+
+# View error logs only
+LIVECON> logs --level ERROR --count 10
+16:00:35 [ERROR   ] [192.168.1.102] Connection timeout after 30 seconds
+15:58:22 [ERROR   ] [device003] Packet parsing failed: checksum mismatch
+15:55:10 [ERROR   ] [192.168.1.105] Authentication failed: invalid device ID
+```
+
+**packets** - Packet content inspection
+```
+# View recent packets
+LIVECON> packets --count 5
+Recent Packet Contents (5 packets):
+
+16:01:15 device001
+  STX: 0x24 | Device: 001 | Length: 32
+  Temperature: 24.5°C | Water: 23.2°C | DO: 11.8 mg/L
+  GPS: 9q8yy1yvpz (37.5665, 126.9780)
+  Time: 2024-08-30 16:01:15 | Checksum: 0x1A2B ✓
+
+# Real-time packet monitoring
+LIVECON> packets device001 --follow --parsed
+Following packet contents for device 'device001'... (Press Ctrl+C to stop)
+
+16:01:20 device001 [PARSED]
+  Water Temperature: 23.4°C (Normal: 15-25°C)
+  Dissolved Oxygen: 11.9 mg/L (Normal: 10-12 mg/L)
+  Ambient Temperature: 24.2°C
+  Location: 9q8yy1yvpz (Seoul, South Korea)
+  Status: All parameters normal
+^C (Press Ctrl+C to stop)
+
+# View raw packet data
+LIVECON> packets device001 --raw --count 1
+Recent Packet Contents (1 packets):
+
+16:01:30 device001 [RAW]
+24 00 01 00 00 20 00 F5 04 AC 01 68 39 71 38 79 
+79 31 79 76 70 7A 07 E8 08 1E 10 01 1E 1A 2B 5C
+```
+
+**stats** - Performance statistics
+```
+# Overall server statistics
+LIVECON> stats
+=== Server Statistics ===
+  Total Packets: 2,156
+  Successful: 2,131 (98.8%)
+  Failed: 25 (1.2%)
+  Total Alarms: 8
+  Total Errors: 3
+
+Performance:
+  Avg Response Time: 11.5ms
+  Success Rate: 98.8%
+  Uptime: 3h 22m 15s
+
+# Detailed client statistics
+LIVECON> stats --client device001 --latency
+=== Client Statistics: device001 ===
+  Total Packets: 1,205
+  Successful: 1,187 (98.5%)
+  Failed: 18 (1.5%)
+  Status: CONNECTED
+
+Packet Intervals (ms):
+  Min: 4,998.2ms
+  Max: 5,002.8ms
+  Average: 5,000.1ms
+  Median: 5,000.0ms
+
+Client Latency Statistics (ms):
+  Min: 8.2ms
+  Max: 45.1ms
+  Average: 12.3ms
+  95th Percentile: 18.7ms
+  99th Percentile: 28.4ms
+```
+
+**crypto** - Cryptographic system information
+```
+LIVECON> crypto
+=== Cryptographic System Information ===
+
+Encryption Protocol: ECDHE + Ed25519 + ChaCha20-Poly1305
+├── Key Exchange: X25519 (Curve25519 ECDH)
+├── Authentication: Ed25519 (EdDSA signature)
+├── Encryption: ChaCha20-Poly1305 (AEAD)
+└── Forward Secrecy: Perfect (ephemeral keys)
+
+Server Identity:
+  Ed25519 Public Key: a1b2c3d4e5f6... (64 chars)
+  Key Fingerprint: SHA256:K7+MQ8bJhE...
+
+Active Sessions: 2
+├── device001: 128-bit session key, 1,205 packets encrypted
+└── device002: 128-bit session key, 623 packets encrypted
+
+Security Features:
+✓ Perfect Forward Secrecy enabled
+✓ Session key rotation every 1 hour
+✓ Anti-replay protection active
+✓ Cryptographic integrity verification
+```
+
+### Management Commands
+
+**clear** - Clear console screen
+```
+LIVECON> clear
+```
+
+**help** - Show help information
+```
+LIVECON> help
+Available Commands:
+  status      show server status and overview
+  sessions    list ECDHE sessions [device_id] [--active] [--expired] [--details]
+  clients     show connected clients [device_id|address] [--logs] [--stats]
+  logs        display system logs [--level LEVEL] [--count N] [--grep PATTERN] [--follow]
+  packets     inspect client packet contents [device_id] [--follow] [--raw] [--parsed] [--count N]
+  stats       show statistics [device_id] [--latency] [--processing] [--details] [--client ID]
+  crypto      display cryptographic system information
+  clear       clear the console screen
+  stop        stop the server
+  restart     restart the server
+  exit        exit console (server keeps running)
+  shutdown    shutdown server and exit console
+  help        show this help message
+
+Usage examples:
+  clients device001 --logs          Show client details with logs
+  sessions --active --details       Show detailed active sessions
+  logs --level ERROR --count 50     Show last 50 error logs
+  logs --follow --grep 'device001'  Follow logs for specific device
+  stats --latency --processing      Show detailed performance stats
+  stats --client device001 --latency Show client latency statistics
+  packets device001 --follow --parsed   Follow parsed packets from specific device
+  packets --count 20 --raw          Show last 20 raw packets
+```
+
+**stop / shutdown** - Server termination
+```
+LIVECON> stop     # Stop server (keep console)
+LIVECON> shutdown # Shutdown server and exit console
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**1. Server Startup Failure**
+```
+Error: [Errno 10048] Only one usage of each socket address is normally permitted
+```
+**Solution:** Port already in use. Use different port or terminate existing process
+
+**2. Database Connection Failure**
+```
+Database connection failed: Access denied for user 'root'@'localhost'
+```
+**Solution:** Check environment variables (`DB_PASSWORD`, `DB_USER`, etc.)
+
+**3. Client Connection Failure**
+```
+iot-client[tank001]: Connection failed: Connection refused
+```
+**Solution:** Verify server status and network connectivity
+
+**4. Alarm Response**
+```
+[ALARM] [device001] Water temperature HIGH: 25.2°C (threshold: 25.0°C)
+```
+**Response:** Immediately check cooling system, adjust transport environment temperature
+
+### Performance Optimization
+
+**Check Memory Usage:**
+```
+LIVECON> status  # Display memory usage
+```
+
+**Network Optimization:**
+```json
+// Adjust transmission interval in config.json
+{
+    "interval": 10,  // Increase from 5 to 10 seconds to reduce traffic
+    "sensor_config": {
+        "critical_do_level": 4.0  // Maintain critical thresholds
+    }
+}
+```
 
 ## Use Cases
 
