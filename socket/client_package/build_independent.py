@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-독립 클라이언트 패키지 빌드 스크립트
-모든 모듈을 내장한 완전 독립 실행 파일 생성
+Independent Client Package Build Script
+Creates fully independent executable with all modules embedded
 """
 
 import subprocess
@@ -10,29 +10,66 @@ import os
 import shutil
 from pathlib import Path
 
+def create_simple_icon():
+    """Create a simple shell-style icon if not exists"""
+    current_dir = Path(__file__).parent
+    icon_path = current_dir / "client_icon.ico"
+    
+    if not icon_path.exists():
+        try:
+            from PIL import Image, ImageDraw
+            print("Creating client shell icon...")
+            
+            # Create simple 32x32 green shell icon
+            img = Image.new('RGBA', (32, 32), (30, 80, 30, 255))
+            draw = ImageDraw.Draw(img)
+            
+            # Draw border
+            draw.rectangle([1, 1, 30, 30], outline=(255, 255, 255, 255), width=1)
+            
+            # Draw "CLI" text
+            draw.text((6, 12), "CLI", fill=(255, 255, 255, 255))
+            
+            # Draw terminal prompt
+            draw.text((3, 3), ">", fill=(255, 255, 255, 255))
+            
+            img.save(icon_path)
+            print(f"Client icon created: {icon_path}")
+            
+        except ImportError:
+            print("PIL not available, building without icon")
+        except Exception as e:
+            print(f"Could not create icon: {e}")
+
 def build_independent_client():
-    """독립 클라이언트 exe 빌드"""
+    """Build independent client executable"""
     current_dir = Path(__file__).parent
     
-    print("독립 클라이언트 패키지 빌드 시작")
+    print("Building independent client package...")
     print("=" * 50)
     
+    # Try to create icon if it doesn't exist
+    create_simple_icon()
+    
     # 이전 빌드 파일 정리
-    print("이전 빌드 파일 정리 중...")
+    print("Cleaning up previous build files...")
     for cleanup_dir in ['build', 'dist', '__pycache__']:
         cleanup_path = current_dir / cleanup_dir
         if cleanup_path.exists():
             shutil.rmtree(cleanup_path)
-            print(f"   {cleanup_dir} 삭제됨")
+            print(f"   {cleanup_dir} removed")
     
     # .spec 파일 삭제
     spec_file = current_dir / 'client.spec'
     if spec_file.exists():
         spec_file.unlink()
-        print("   client.spec 삭제됨")
+        print("   client.spec removed")
     
     try:
-        print("\nPyInstaller로 독립 빌드 중...")
+        print("\nBuilding with PyInstaller...")
+        
+        # 아이콘 파일 체크
+        icon_path = current_dir / "client_icon.ico"
         
         # PyInstaller 명령 구성 (모든 모듈 내장)
         cmd = [
@@ -43,14 +80,24 @@ def build_independent_client():
             "--distpath=.",                 # 현재 디렉토리에 출력
             "--workpath=build",             # 임시 작업 디렉토리
             "--specpath=.",                 # .spec 파일 위치
-            
+        ]
+        
+        # 아이콘 파일이 있으면 추가
+        if icon_path.exists():
+            cmd.append(f"--icon={icon_path}")
+            print(f"Using icon: {icon_path}")
+        else:
+            print("No icon file found, building without icon")
+        
+        # 나머지 옵션들 추가
+        cmd.extend([
             # 현재 디렉토리의 모든 모듈을 내장
             "--paths=.",                    # 현재 디렉토리를 경로에 추가
             
-            # 클라이언트 모듈들 명시적으로 포함
+            # 클라이언트 모듈들 명시적으로 포함 (최신 구조 반영)
             "--hidden-import=node_module",
-            "--hidden-import=node_module.rsa_utils",
-            "--hidden-import=node_module.generate_packet",
+            "--hidden-import=node_module.ecdhe_crypto",
+            "--hidden-import=node_module.generate_packet", 
             "--hidden-import=node_module.geohash_encode",
             
             # 외부 라이브러리
@@ -61,58 +108,58 @@ def build_independent_client():
             "--add-data=node_module;node_module",
             
             "client.py"                     # 메인 스크립트
-        ]
+        ])
         
-        print("실행 명령:", " ".join(cmd))
+        print("Build command:", " ".join(cmd))
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=current_dir)
         
         if result.returncode == 0:
-            print("빌드 성공!")
+            print("Build successful!")
             
             # 생성된 파일 확인
             exe_path = current_dir / "IoT_Sensor_Client.exe"
             if exe_path.exists():
                 file_size = exe_path.stat().st_size / (1024 * 1024)  # MB
-                print(f"생성된 파일: {exe_path}")
-                print(f"파일 크기: {file_size:.2f} MB")
+                print(f"Generated file: {exe_path}")
+                print(f"File size: {file_size:.2f} MB")
                 
-                print("\n독립 클라이언트 패키지 빌드 완료!")
-                print(f"실행 방법: {exe_path}")
-                print("\n특징:")
-                print("- 모든 모듈이 실행 파일에 내장됨")
-                print("- 외부 폴더 의존성 없음")
-                print("- config.json만 함께 배포하면 완전 독립 실행 가능")
+                print("\nIndependent client package build completed!")
+                print(f"Usage: {exe_path}")
+                print("\nFeatures:")
+                print("- All modules embedded in executable")
+                print("- No external folder dependencies")
+                print("- Complete independent execution with config.json only")
                 return True
             else:
-                print(".exe 파일이 생성되지 않았습니다.")
+                print(".exe file was not generated.")
                 return False
                 
         else:
-            print("빌드 실패!")
-            print("오류 출력:", result.stderr)
+            print("Build failed!")
+            print("Error output:", result.stderr)
             return False
             
     except Exception as e:
-        print(f"빌드 중 오류 발생: {e}")
+        print(f"Error during build: {e}")
         return False
 
 def main():
-    print("독립 클라이언트 패키지 빌드 도구")
+    print("Independent Client Package Build Tool")
     
     # 의존성 확인
     try:
         import PyInstaller
         print(f"PyInstaller 버전: {PyInstaller.__version__}")
     except ImportError:
-        print("PyInstaller가 설치되지 않았습니다.")
-        print("설치 방법: pip install pyinstaller")
+        print("PyInstaller is not installed.")
+        print("Installation: pip install pyinstaller")
         sys.exit(1)
     
     # 빌드 실행
     if build_independent_client():
-        print("\n빌드 성공! 이제 IoT_Sensor_Client.exe를 다른 기기에 배포할 수 있습니다.")
+        print("\nBuild successful! You can now deploy IoT_Sensor_Client.exe to other devices.")
     else:
-        print("\n빌드에 실패했습니다.")
+        print("\nBuild failed.")
         sys.exit(1)
 
 if __name__ == "__main__":

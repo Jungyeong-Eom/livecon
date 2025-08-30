@@ -1,401 +1,322 @@
+#!/usr/bin/env python3
+"""
+LIVECON IoT Server - Interactive Console Mode Only
+ECDHE + Perfect Forward Secrecy enabled
+No dashboard mode - command-based interface only
+"""
+
+import threading
+import time
 import sys
 import os
-import socket
-import threading
 import signal
-import atexit
+import shutil
 
-# 현재 디렉토리를 Python 경로에 추가 (독립 패키지용)
+# 현재 디렉토리를 Python 경로에 추가
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from server_module.rsa_utils import generate_server_keys, generate_and_save_keys, load_private_key, decrypt
-from server_module import parsing
-from server_module.sql_utils import connect_to_database, database_query, select_query, insert_sensor_results
+from server_module.console_manager import ConsoleManager
+from server_module.console_interface import ServerConsole
+from server_module.database_manager import DatabaseManager
+from server_module.crypto_manager import CryptoManager
+from server_module.process_manager import ProcessManager
+from server_module.server_core import ServerCore
+from server_module.client_manager import ClientManager
 
 class LiveConServer:
     def __init__(self, host='localhost', port=12351):
         self.host = host
         self.port = port
         self.running = False
-        self.server_socket = None
-        self.private_key = None
-        self.connected_clients = set()
+        self.server_thread = None
+        self.last_terminal_width = 0
+        self.resize_monitor_thread = None
+        self.terminal_lock = threading.Lock()  # 터미널 출력 동기화
+        self.console_active = False  # 콘솔이 활성화되었는지 추적
+        
+        # 컴포넌트들 초기화 (인터랙티브 모드용)
+        self.console_manager = ConsoleManager()
+        self.database_manager = DatabaseManager(console_manager=self.console_manager)
+        self.crypto_manager = CryptoManager(console_manager=self.console_manager)
+        self.process_manager = ProcessManager(console_manager=self.console_manager, port=port)
+        self.server_core = ServerCore(console_manager=self.console_manager, host=host, port=port)
+        self.client_manager = ClientManager(
+            console_manager=self.console_manager,
+            crypto_manager=self.crypto_manager,
+            database_manager=self.database_manager
+        )
         
         # 종료 핸들러 등록
         self._setup_shutdown_handlers()
         
-        # PID 파일 경로
-        self.pid_file = f"server_{self.port}.pid"
-        
     def _setup_shutdown_handlers(self):
         """종료 핸들러 설정"""
-        # 시그널 핸들러 등록 (Unix/Linux)
-        if hasattr(signal, 'SIGINT'):
-            signal.signal(signal.SIGINT, self._signal_handler)
-        if hasattr(signal, 'SIGTERM'):
-            signal.signal(signal.SIGTERM, self._signal_handler)
+        self.process_manager.setup_shutdown_handlers()
+        self.process_manager.add_shutdown_callback(self.stop)
         
-        # atexit 핸들러 등록 (프로세스 종료 시)
-        atexit.register(self._cleanup_on_exit)
+    def _log(self, message, level="info"):
+        """로그 출력 (인터랙티브 모드: 명령어로만 확인 가능)"""
+        getattr(self.console_manager, level)(message)
     
-    def _signal_handler(self, signum, frame):
-        """시그널 핸들러"""
-        self._log(f"종료 시그널 수신: {signum}")
-        self.stop()
-        sys.exit(0)
+    def _draw_ascii_art(self, initial=False):
+        """터미널 크기에 따른 ASCII 아트 출력 (스레드 안전)"""
+        try:
+            with self.terminal_lock:
+                # 콘솔이 활성화된 상태에서는 리사이즈 시 출력하지 않음
+                if self.console_active and not initial:
+                    return
+                    
+                terminal_width = shutil.get_terminal_size().columns
+                
+                # 화면 지우고 커서를 맨 위로 (초기 실행시에만)
+                if initial:
+                    print("\033[2J\033[H", end="")
+                
+                if terminal_width >= 70:  # 넓은 터미널: LIVECON 로고
+                    print(f"""
+\033[36m ██╗     ██╗██╗   ██╗███████╗ ██████╗ ██████╗ ███╗   ██╗
+ ██║     ██║██║   ██║██╔════╝██╔════╝██╔═══██╗████╗  ██║
+ ██║     ██║██║   ██║█████╗  ██║     ██║   ██║██╔██╗ ██║
+ ██║     ██║╚██╗ ██╔╝██╔══╝  ██║     ██║   ██║██║╚██╗██║
+ ███████╗██║ ╚████╔╝ ███████╗╚██████╗╚██████╔╝██║ ╚████║
+ ╚══════╝╚═╝  ╚═══╝  ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝\033[0m
+
+\033[32m        IoT Server with ECDHE + Perfect Forward Secrecy\033[0m
+\033[90m              Server: {self.host}:{self.port} | Status: \033[32mRUNNING\033[0m
+""")
+                else:  # 작은 터미널: 물고기 ASCII 아트만
+                    print(f"""
+\033[36m            ><((((º>     <º))))><\033[0m
+\033[36m       ><((((º>           <º))))><\033[0m
+\033[36m  ><((((º>                   <º))))><\033[0m
+
+\033[32mRUNNING\033[0m  \033[90m{self.host}:{self.port}\033[0m
+""")
+                
+                # 초기 실행시에만 프롬프트를 출력하지 않음 (ServerConsole에서 처리)
+        except (OSError, ValueError):
+            # 터미널 크기를 가져올 수 없는 경우 무시
+            pass
     
-    def _cleanup_on_exit(self):
-        """프로세스 종료 시 정리 작업"""
-        if self.running:
-            self._log("프로세스 종료 시 서버 정리 중...")
-            self.stop()
+    def _monitor_terminal_resize(self):
+        """터미널 크기 변화 모니터링 (스레드 안전)"""
+        consecutive_errors = 0
+        max_errors = 10
         
-    def initialize_keys(self):
-        """RSA 키 생성 및 로드 (보안 개선)"""
-        try:
-            # 독립 패키지용 - 현재 디렉토리에 키 파일 생성
-            private_key_path = "private.pem"
-            public_key_path = "public.pem"
-            
-            # 서버 키만 생성 (보안 개선)
-            generate_server_keys(private_key_path, public_key_path)
-            self.private_key = load_private_key(private_key_path)
-            self.public_key_path = public_key_path  # 공개키 경로 저장
-            self._log(f"서버 RSA 키 로드 완료 - 클라이언트는 {public_key_path}에서 공개키를 가져가세요")
-            return True
-        except Exception as e:
-            self._log(f"RSA 키 초기화 실패: {e}")
-            return False
-    
-    def get_public_key(self):
-        """클라이언트가 사용할 수 있도록 공개키 반환"""
-        try:
-            with open(self.public_key_path, 'rb') as f:
-                return f.read()
-        except Exception as e:
-            self._log(f"공개키 로드 실패: {e}")
-            return None
-    
-    def _create_pid_file(self):
-        """PID 파일 생성"""
-        try:
-            with open(self.pid_file, 'w') as f:
-                f.write(str(os.getpid()))
-            self._log(f"PID 파일 생성됨: {self.pid_file}")
-        except Exception as e:
-            self._log(f"PID 파일 생성 실패: {e}")
-    
-    def _remove_pid_file(self):
-        """PID 파일 제거"""
-        try:
-            if os.path.exists(self.pid_file):
-                os.remove(self.pid_file)
-                self._log(f"PID 파일 제거됨: {self.pid_file}")
-        except Exception as e:
-            self._log(f"PID 파일 제거 실패: {e}")
-    
-    def _check_existing_server(self):
-        """기존 서버 인스턴스 확인"""
-        if os.path.exists(self.pid_file):
+        while self.running:
             try:
-                with open(self.pid_file, 'r') as f:
-                    old_pid = int(f.read().strip())
-                self._log(f"기존 PID 파일 발견: {old_pid}")
-                return True
-            except Exception as e:
-                self._log(f"PID 파일 읽기 오류: {e}")
-                # 손상된 PID 파일 제거
-                self._remove_pid_file()
-        return False
-    
-    def _check_port_available(self):
-        """포트 사용 가능 여부 확인"""
-        try:
-            # SO_REUSEADDR 없이 테스트 - 실제 사용 여부를 정확히 확인
-            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            test_socket.bind((self.host, self.port))
-            test_socket.close()
-            self._log(f"포트 {self.port} 사용 가능")
-            return True
-        except socket.error as e:
-            self._log(f"포트 {self.port} 사용 불가: {e}")
-            return False
+                current_width = shutil.get_terminal_size().columns
+                if current_width != self.last_terminal_width and not self.console_active:
+                    self.last_terminal_width = current_width
+                    self._draw_ascii_art(initial=False)
+                
+                consecutive_errors = 0  # 성공시 에러 카운트 리셋
+                time.sleep(0.2)  # CPU 사용량 최적화: 200ms마다 체크
+                
+            except (OSError, ValueError) as e:
+                consecutive_errors += 1
+                if consecutive_errors >= max_errors:
+                    # 연속 에러가 많으면 모니터링 중단
+                    break
+                time.sleep(1)  # 에러 시 더 긴 대기
+            except Exception:
+                # 예상치 못한 에러 시 중단
+                break
     
     def start(self):
         """서버 시작"""
-        # 기존 서버 인스턴스 확인
-        if self._check_existing_server():
-            self._log("기존 서버 인스턴스가 실행 중일 수 있습니다.")
+        # 인터랙티브 모드: 대시보드 없이 로그만 수집
+        # 실제 콘솔 출력은 명령어를 통해서만 확인 가능
         
-        if not self.initialize_keys():
+        # 기존 서버 인스턴스 확인
+        if self.process_manager.check_existing_server():
+            self._log("Existing server instance may be running", "warning")
+        
+        # ECDHE + Ed25519 키 초기화
+        self._log("Initializing ECDHE + Ed25519 crypto system...")
+        if not self.crypto_manager.initialize_keys():
+            self._log("Crypto system initialization failed", "error")
+            return False
+        self._log("ECDHE + PFS cryptographic system initialized")
+        
+        # 포트 사용 가능 여부 확인 및 서버 소켓 생성
+        self._log(f"Checking port {self.port} availability...")
+        try:
+            self.server_core.check_port_available()
+            self._log(f"Port {self.port} is available")
+        except Exception as e:
+            self._log(f"Port availability check failed: {e}", "error")
             return False
         
-        # 포트 사용 가능 여부 확인
-        if not self._check_port_available():
-            self._log(f"오류: 포트 {self.port}가 이미 사용 중입니다. 다른 서버 인스턴스가 실행 중일 수 있습니다.")
+        # 서버 소켓 생성
+        self._log("Creating server socket...")
+        try:
+            self.server_core.create_server_socket()
+            self._log("Server socket created successfully")
+        except Exception as e:
+            self._log(f"Server socket creation failed: {e}", "error")
             return False
             
         try:
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # 포트 재사용 옵션 강화
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            
-            # Windows에서 TIME_WAIT 상태 해결을 위한 추가 옵션
-            try:
-                self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-            except (AttributeError, OSError):
-                # SO_REUSEPORT가 지원되지 않는 시스템에서는 무시
-                pass
-            
-            # 소켓이 즉시 닫히도록 설정 (TIME_WAIT 상태 방지)
-            import struct
-            linger_struct = struct.pack('ii', 1, 0)  # l_onoff=1, l_linger=0 (즉시 닫기)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, linger_struct)
-            
-            self.server_socket.settimeout(1.0)  # accept에 1초 타임아웃 설정
-            self.server_socket.bind((self.host, self.port))
-            self.server_socket.listen(5)
             self.running = True
-            self._create_pid_file()
-            self._log(f"서버가 {self.host}:{self.port}에서 시작되었습니다")
-            self._log("클라이언트 연결 대기 중...")
+            self.process_manager.create_pid_file()
+            self._log(f"Starting server listener on {self.host}:{self.port}")
+            self.server_core.start_listening()
             
-            while self.running:
-                try:
-                    client_socket, client_address = self.server_socket.accept()
-                    self._log(f"클라이언트 연결 수락됨: {client_address}")
-                    
-                    if not self.running:
-                        client_socket.close()
-                        break
-                        
-                    client_thread = threading.Thread(
-                        target=self._handle_client,
-                        args=(client_socket, client_address),
-                        daemon=True
-                    )
-                    client_thread.start()
-                    
-                except socket.timeout:
-                    # 타임아웃은 정상적인 상황 - 계속 대기 (로그 출력 안함)
-                    continue
-                except socket.error as e:
-                    if self.running:
-                        self._log(f"클라이언트 연결 수락 오류: {e}")
-                except Exception as e:
-                    if self.running:
-                        self._log(f"예상치 못한 오류: {e}")
-                        
+            # 센서 모니터링 시작
+            self._log("Starting sensor monitoring system")
+            self.client_manager.start_sensor_monitoring()
+            
+            self._log("Server started successfully. Ready for client connections...")
+            return True
+            
         except Exception as e:
-            self._log(f"서버 시작 실패: {e}")
+            self._log(f"Server startup failed: {e}", "error")
             return False
         finally:
-            self._cleanup()
+            if not self.running:
+                self._cleanup()
             
         return True
+    
+    def start_background_server(self):
+        """백그라운드에서 클라이언트 처리 시작"""
+        self.server_thread = threading.Thread(target=self._background_server_loop, daemon=True)
+        self.server_thread.start()
+    
+    def _background_server_loop(self):
+        """백그라운드 서버 루프"""
+        try:
+            while self.running:
+                try:
+                    client_socket, client_address = self.server_core.accept_client()
+                    
+                    if client_socket and client_address:
+                        if not self.running:
+                            client_socket.close()
+                            break
+                            
+                        client_thread = threading.Thread(
+                            target=self.client_manager.handle_client,
+                            args=(client_socket, client_address),
+                            daemon=True
+                        )
+                        client_thread.start()
+                        
+                except Exception as e:
+                    if self.running:
+                        self._log(f"Background server loop error: {e}", "error")
+                        time.sleep(1)
+                        
+        except Exception as e:
+            self._log(f"Background server error: {e}", "error")
     
     def stop(self):
         """서버 중지"""
         if not self.running:
             return
             
-        self._log("서버 종료 시작...")
+        self._log("Server shutdown initiated...")
         self.running = False
         
+        # 센서 모니터링 중지
+        self.client_manager.stop_sensor_monitoring()
+        
         # 모든 클라이언트 연결 강제 종료
-        for client_addr in list(self.connected_clients):
-            self._log(f"클라이언트 연결 강제 종료: {client_addr}")
-        self.connected_clients.clear()
+        self.client_manager.disconnect_all_clients()
+        
+        # 암호화 매니저 중지 (세션 정리)
+        self.crypto_manager.stop()
         
         # 서버 소켓 종료
-        if self.server_socket:
-            try:
-                self.server_socket.close()
-                self._log("서버 소켓 종료됨")
-            except Exception as e:
-                self._log(f"서버 소켓 종료 오류: {e}")
+        self.server_core.stop()
         
         # PID 파일 제거
-        self._remove_pid_file()
+        self.process_manager.remove_pid_file()
         
-        self._log("서버 종료 완료")
-    
-    def _handle_client(self, client_socket, client_address):
-        """클라이언트 연결 처리"""
-        client_addr_str = f"{client_address[0]}:{client_address[1]}"
-        self.connected_clients.add(client_addr_str)
-        self._on_client_connected(client_addr_str)
-        
-        client_socket.settimeout(10)
-        
-        try:
-            while self.running:
-                data = client_socket.recv(1024)
-                if not data:
-                    self._log(f"[{client_addr_str}] 연결 종료 요청")
-                    break
-                
-                # 공개키 요청 처리
-                if data == b"REQUEST_PUBLIC_KEY":
-                    self._log(f"[{client_addr_str}] 공개키 요청 수신")
-                    try:
-                        with open(self.public_key_path, 'rb') as f:
-                            public_key_data = f.read()
-                        
-                        # 공개키 크기를 먼저 전송 (4바이트)
-                        key_size = len(public_key_data)
-                        client_socket.sendall(key_size.to_bytes(4, 'big'))
-                        
-                        # 공개키 데이터 전송
-                        client_socket.sendall(public_key_data)
-                        self._log(f"[{client_addr_str}] 공개키 전송 완료 ({key_size} 바이트)")
-                        continue
-                        
-                    except Exception as e:
-                        self._log(f"[{client_addr_str}] 공개키 전송 실패: {e}")
-                        error_msg = b"ERROR: PUBLIC_KEY_FAILED"
-                        client_socket.sendall(len(error_msg).to_bytes(4, 'big'))
-                        client_socket.sendall(error_msg)
-                        continue
-                    
-                # 암호화된 데이터 처리
-                try:
-                    # 복호화
-                    decrypted_data = decrypt(data, self.private_key)
-                    
-                    # 패킷 파싱
-                    parsed = parsing.parse_packet(decrypted_data)
-                    if parsed:
-                        self._log(f"[{client_addr_str}] 센서 데이터 수신 - ID: {parsed['ID']}, 온도: {parsed['TEMP']}°C")
-                        
-                        # 센서 ID 확인
-                        validation_result = self._validate_sensor_id(parsed['ID'], client_addr_str)
-                        if not validation_result:
-                            self._log(f"[{client_addr_str}] 센서 ID 검증 실패, 연결 종료")
-                            break
-                        
-                        # 콘솔에 데이터 출력
-                        self._display_data(parsed, client_addr_str)
-                        
-                        # 데이터베이스 저장 시도
-                        try:
-                            result = insert_sensor_results(parsed)
-                            if result:
-                                self._log(f"[{client_addr_str}] 데이터베이스 저장 성공")
-                            else:
-                                self._log(f"[{client_addr_str}] 데이터베이스 저장 실패")
-                        except Exception as db_e:
-                            self._log(f"[{client_addr_str}] 데이터베이스 오류: {db_e}")
-                            
-                    else:
-                        self._log(f"[{client_addr_str}] 패킷 파싱 실패")
-                        
-                except Exception as e:
-                    self._log(f"[{client_addr_str}] 패킷 처리 오류: {e}")
-                    
-        except socket.timeout:
-            self._log(f"[{client_addr_str}] 연결 타임아웃")
-        except Exception as e:
-            self._log(f"[{client_addr_str}] 연결 오류: {e}")
-        finally:
-            client_socket.close()
-            self.connected_clients.discard(client_addr_str)
-            self._on_client_disconnected(client_addr_str)
-    
-    def _validate_sensor_id(self, sensor_id, client_addr_str):
-        """센서 ID 유효성 검사"""
-        try:
-            rows = select_query("SELECT sensor_id FROM sensor_info")
-            if rows is None:
-                self._log(f"[{client_addr_str}] 데이터베이스 조회 실패")
-                return False
-                
-            # 데이터베이스의 센서 ID를 정수로 변환하여 비교
-            sensor_ids = []
-            for row in rows:
-                try:
-                    # 문자열로 저장된 센서 ID를 정수로 변환
-                    db_sensor_id = int(row['sensor_id'])
-                    sensor_ids.append(db_sensor_id)
-                except (ValueError, TypeError):
-                    # 변환 실패 시 원래 값도 포함
-                    sensor_ids.append(row['sensor_id'])
-            
-            self._log(f"[{client_addr_str}] 검증 중 - 수신된 센서 ID: {sensor_id} (타입: {type(sensor_id)})")
-            self._log(f"[{client_addr_str}] 데이터베이스 센서 ID들: {sensor_ids}")
-            
-            if sensor_id not in sensor_ids:
-                self._log(f"[{client_addr_str}] 등록되지 않은 센서 ID: {sensor_id}")
-                return False
-                
-            return True
-        except Exception as e:
-            self._log(f"[{client_addr_str}] 센서 ID 검증 오류: {e}")
-            return False
+        self._log("Server shutdown completed")
     
     def _cleanup(self):
         """정리 작업"""
-        self.connected_clients.clear()
-        if self.server_socket:
-            try:
-                self.server_socket.close()
-            except:
-                pass
-        
-        # PID 파일 제거
-        self._remove_pid_file()
-        self._log("서버 정리 완료")
-    
-    def _log(self, message):
-        """로그 출력"""
-        print(message)
-    
-    def _on_client_connected(self, client_addr):
-        """클라이언트 연결 콜백"""
-        self._log(f"클라이언트 연결: {client_addr}")
-    
-    def _on_client_disconnected(self, client_addr):
-        """클라이언트 연결 해제 콜백"""
-        self._log(f"클라이언트 연결 해제: {client_addr}")
-    
-    def _display_data(self, data, client_addr):
-        """센서 데이터 콘솔 출력"""
-        print(f"\n{'='*50}")
-        print(f"클라이언트 주소: [{client_addr}]")
-        print(f"센서 ID: {data['ID']}")
-        print(f"온도: {data['TEMP']}°C")
-        print(f"용존산소: {data['DO']}ppm")
-        print(f"수온: {data['WTR_TEMP']}°C")
-        print(f"위치: {data['LOC']}")
-        print(f"시간: {data['TIME']}")
-        print(f"체크섬: {data['CHK']}")
-        print(f"{'='*50}\n")
+        self.client_manager.stop_sensor_monitoring()
+        self.client_manager.disconnect_all_clients()
+        self.crypto_manager.stop()
+        self.server_core.stop()
+        self.process_manager.remove_pid_file()
+        self._log("Server cleanup completed")
     
     def get_connected_clients(self):
         """연결된 클라이언트 목록 반환"""
-        return list(self.connected_clients)
+        return self.client_manager.get_connected_clients()
     
     def is_running(self):
         """서버 실행 상태 반환"""
-        return self.running
+        return self.running and self.server_core.is_running()
+    
+    def get_monitoring_status(self):
+        """센서 모니터링 상태 반환"""
+        return self.client_manager.get_monitoring_status()
 
-# 콘솔 모드로 실행할 때의 기본 서버
-def start_console_server():
-    """콘솔 모드 서버 시작"""
+def start_interactive_server():
+    """인터랙티브 콘솔 모드 서버 시작"""
+    
     server = LiveConServer()
     
+    print("\nStarting server components...")
+    
     try:
-        print("서버 시작 중... (Ctrl+C로 종료)")
-        server.start()
-    except KeyboardInterrupt:
-        print("\n키보드 인터럽트 수신, 서버 종료 중...")
+        if server.start():
+            # 백그라운드에서 클라이언트 처리 시작
+            server.start_background_server()
+            
+            # 성공 시 10초 대기 후 화면 지우고 ASCII 아트 표시
+            import os
+            import shutil
+            import time
+            time.sleep(10)  # 10초 대기
+            os.system('cls' if os.name == 'nt' else 'clear')
+            
+            # 초기 ASCII 아트 출력
+            try:
+                server.last_terminal_width = shutil.get_terminal_size().columns
+                server._draw_ascii_art(initial=True)
+                
+                # 터미널 크기 변화 모니터링 스레드 시작
+                server.resize_monitor_thread = threading.Thread(
+                    target=server._monitor_terminal_resize, 
+                    daemon=True
+                )
+                server.resize_monitor_thread.start()
+            except (OSError, ValueError):
+                # 터미널 크기 감지 실패시 기본 로고만 출력
+                print("\n\033[32mLIVECON IoT Server - RUNNING\033[0m\n")
+            
+            console = ServerConsole(server)
+            
+            try:
+                console.cmdloop()
+            except KeyboardInterrupt:
+                print("\nKeyboard interrupt received")
+            except EOFError:
+                print("\nEOF received")
+            
+        else:
+            print("Server startup failed")
+            
     except Exception as e:
-        print(f"서버 오류: {e}")
+        print(f"Fatal error: {e}")
+        import traceback
+        traceback.print_exc()
+        
     finally:
-        server.stop()
-        print("서버 종료됨")
+        print("\nShutting down server...")
+        try:
+            server.stop()
+        except:
+            pass
+        print("Server shutdown complete")
 
 if __name__ == "__main__":
-    start_console_server()
+    start_interactive_server()
