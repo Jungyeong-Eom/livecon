@@ -86,13 +86,12 @@ class LiveConServer:
 \033[32m        IoT Server with ECDHE + Perfect Forward Secrecy\033[0m
 \033[90m              Server: {self.host}:{self.port} | Status: \033[32mRUNNING\033[0m
 """)
-                else:  # 작은 터미널: 물고기 ASCII 아트만
+                else:  # 작은 터미널: 간단한 텍스트 표시
                     print(f"""
-\033[36m            ><((((º>     <º))))><\033[0m
-\033[36m       ><((((º>           <º))))><\033[0m
-\033[36m  ><((((º>                   <º))))><\033[0m
+\033[1mLivecon\033[0m version \033[36m1.0\033[0m
 
-\033[32mRUNNING\033[0m  \033[90m{self.host}:{self.port}\033[0m
+IoT Sensor Server
+Status: \033[32mRUNNING\033[0m  Port: \033[90m{self.port}\033[0m
 """)
                 
                 # 초기 실행시에만 프롬프트를 출력하지 않음 (ServerConsole에서 처리)
@@ -271,11 +270,11 @@ def start_interactive_server():
             # 백그라운드에서 클라이언트 처리 시작
             server.start_background_server()
             
-            # 성공 시 10초 대기 후 화면 지우고 ASCII 아트 표시
+            # 성공 시 3초 대기 후 화면 지우고 ASCII 아트 표시
             import os
             import shutil
             import time
-            time.sleep(10)  # 10초 대기
+            time.sleep(3)  # 3초 대기
             os.system('cls' if os.name == 'nt' else 'clear')
             
             # 초기 ASCII 아트 출력
@@ -293,14 +292,32 @@ def start_interactive_server():
                 # 터미널 크기 감지 실패시 기본 로고만 출력
                 print("\n\033[32mLIVECON IoT Server - RUNNING\033[0m\n")
             
-            console = ServerConsole(server)
-            
-            try:
+            # TTY 체크 - 대화형 터미널이 있는 경우만 콘솔 시작
+            import sys
+            if sys.stdin.isatty() and sys.stdout.isatty():
+                console = ServerConsole(server)
+                
                 console.cmdloop()
-            except KeyboardInterrupt:
-                print("\nKeyboard interrupt received")
-            except EOFError:
-                print("\nEOF received")
+            else:
+                print("\033[33mInfo:\033[0m Non-interactive mode: Server running in background")
+                print("\033[33mInfo:\033[0m Send SIGTERM or SIGINT to stop the server")
+                try:
+                    # 서버가 중단될 때까지 대기
+                    import signal
+                    import time
+                    
+                    def signal_handler(signum, frame):
+                        print(f"\nReceived signal {signum}, shutting down...")
+                        server.stop()
+                        
+                    signal.signal(signal.SIGTERM, signal_handler)
+                    signal.signal(signal.SIGINT, signal_handler)
+                    
+                    while server.running:
+                        time.sleep(1)
+                        
+                except KeyboardInterrupt:
+                    print("\nKeyboard interrupt received")
             
         else:
             print("Server startup failed")

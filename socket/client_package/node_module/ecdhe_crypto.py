@@ -7,6 +7,14 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+class AuthenticationError(Exception):
+    """Authentication/signature verification failed"""
+    pass
+
+class ConnectionError(Exception):
+    """Network connection failed"""  
+    pass
+
 class ECDHECrypto:
     """Client-side ECDHE + Ed25519 signature crypto with PFS"""
     
@@ -35,7 +43,10 @@ class ECDHECrypto:
             # Connect to server for key exchange
             exchange_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             exchange_socket.settimeout(30)
-            exchange_socket.connect((server_address, server_port))
+            try:
+                exchange_socket.connect((server_address, server_port))
+            except (socket.error, OSError) as e:
+                raise ConnectionError(f"Failed to connect to server {server_address}:{server_port} - {e}")
             
             try:
                 # Send key exchange request
@@ -60,7 +71,11 @@ class ECDHECrypto:
                 
                 if response_data.startswith(b"ERROR:"):
                     error_msg = response_data.decode()
-                    raise Exception(f"Server error: {error_msg}")
+                    # Check if it's authentication/signature failure
+                    if "signature" in error_msg.lower() or "auth" in error_msg.lower() or "verify" in error_msg.lower():
+                        raise AuthenticationError(f"Authentication failed: {error_msg}")
+                    else:
+                        raise ConnectionError(f"Server error: {error_msg}")
                 
                 # Parse response: server_x25519_pubkey (32) + signature (64) + server_ed25519_pubkey (32)
                 if len(response_data) != 128:  # 32 + 64 + 32
@@ -78,7 +93,7 @@ class ECDHECrypto:
                     server_ed25519_pubkey.verify(signature, message_to_verify)
                     print("Server signature verification successful")
                 except Exception:
-                    raise Exception("Server signature verification failed - potential MITM attack")
+                    raise AuthenticationError("Server signature verification failed - potential MITM attack")
                 
                 # Perform ECDHE
                 server_x25519_pubkey = X25519PublicKey.from_public_bytes(server_x25519_pubkey_bytes)

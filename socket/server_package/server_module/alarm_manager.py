@@ -143,15 +143,19 @@ class AlarmManager:
                         result['alarm_triggered'] = True
                         result['alarm_types'].append(AlarmType.SENSOR_RANGE_EXCEEDED.value)
                 
-                # Check resolution
+                # Check resolution - improved logic
                 if resolution is not None and resolution > 0:
-                    decimal_places = len(str(temp_value).split('.')[-1]) if '.' in str(temp_value) else 0
-                    expected_decimal_places = len(str(resolution).split('.')[-1]) if '.' in str(resolution) else 0
-                    if decimal_places > expected_decimal_places:
-                        self.trigger_alarm(AlarmType.SENSOR_RESOLUTION_ERROR, sensor_id,
-                                         value=temp_value, resolution=resolution)
-                        result['error_detected'] = True
-                        result['error_types'].append(AlarmType.SENSOR_RESOLUTION_ERROR.value)
+                    # Check if the value precision exceeds sensor resolution
+                    # Use modulo to check if the value aligns with resolution steps
+                    try:
+                        if abs(temp_value % resolution) > resolution * 0.1:  # Allow 10% tolerance
+                            self.trigger_alarm(AlarmType.SENSOR_RESOLUTION_ERROR, sensor_id,
+                                             value=temp_value, resolution=resolution)
+                            result['error_detected'] = True
+                            result['error_types'].append(AlarmType.SENSOR_RESOLUTION_ERROR.value)
+                    except:
+                        # If modulo operation fails, skip resolution check
+                        pass
                 
                 # Check alarm thresholds
                 if temp_value > alarm_max:
@@ -176,15 +180,17 @@ class AlarmManager:
                         result['alarm_triggered'] = True
                         result['alarm_types'].append(AlarmType.SENSOR_RANGE_EXCEEDED.value)
                 
-                # Check resolution
+                # Check resolution - improved logic
                 if resolution is not None and resolution > 0:
-                    decimal_places = len(str(wtr_temp_value).split('.')[-1]) if '.' in str(wtr_temp_value) else 0
-                    expected_decimal_places = len(str(resolution).split('.')[-1]) if '.' in str(resolution) else 0
-                    if decimal_places > expected_decimal_places:
-                        self.trigger_alarm(AlarmType.SENSOR_RESOLUTION_ERROR, sensor_id,
-                                         value=wtr_temp_value, resolution=resolution)
-                        result['error_detected'] = True
-                        result['error_types'].append(AlarmType.SENSOR_RESOLUTION_ERROR.value)
+                    try:
+                        if abs(wtr_temp_value % resolution) > resolution * 0.1:  # Allow 10% tolerance
+                            self.trigger_alarm(AlarmType.SENSOR_RESOLUTION_ERROR, sensor_id,
+                                             value=wtr_temp_value, resolution=resolution)
+                            result['error_detected'] = True
+                            result['error_types'].append(AlarmType.SENSOR_RESOLUTION_ERROR.value)
+                    except:
+                        # If modulo operation fails, skip resolution check
+                        pass
                 
                 # Check alarm thresholds
                 if wtr_temp_value > alarm_max:
@@ -209,15 +215,17 @@ class AlarmManager:
                         result['alarm_triggered'] = True
                         result['alarm_types'].append(AlarmType.SENSOR_RANGE_EXCEEDED.value)
                 
-                # Check resolution
+                # Check resolution - improved logic
                 if resolution is not None and resolution > 0:
-                    decimal_places = len(str(do_value).split('.')[-1]) if '.' in str(do_value) else 0
-                    expected_decimal_places = len(str(resolution).split('.')[-1]) if '.' in str(resolution) else 0
-                    if decimal_places > expected_decimal_places:
-                        self.trigger_alarm(AlarmType.SENSOR_RESOLUTION_ERROR, sensor_id,
-                                         value=do_value, resolution=resolution)
-                        result['error_detected'] = True
-                        result['error_types'].append(AlarmType.SENSOR_RESOLUTION_ERROR.value)
+                    try:
+                        if abs(do_value % resolution) > resolution * 0.1:  # Allow 10% tolerance
+                            self.trigger_alarm(AlarmType.SENSOR_RESOLUTION_ERROR, sensor_id,
+                                             value=do_value, resolution=resolution)
+                            result['error_detected'] = True
+                            result['error_types'].append(AlarmType.SENSOR_RESOLUTION_ERROR.value)
+                    except:
+                        # If modulo operation fails, skip resolution check
+                        pass
                 
                 # Check alarm thresholds
                 if do_value > alarm_max:

@@ -236,11 +236,26 @@ cd socket/client_package
 **4. 클라이언트 실행 화면**
 ```
 2024-08-30 12:30:15 iot-client[tank001]: Starting LIVECON fish tank sensor
-2024-08-30 12:30:15 iot-client[tank001]: Connecting to server 127.0.0.1:9999
-2024-08-30 12:30:16 iot-client[tank001]: ECDHE key exchange completed
-2024-08-30 12:30:16 iot-client[tank001]: Authentication successful
-2024-08-30 12:30:16 iot-client[tank001]: Sending sensor data every 5 seconds
-2024-08-30 12:30:16 iot-client[tank001]: Water: 22.5°C | DO: 11.2mg/L | GPS: 9q8yy1yvpz
+2024-08-30 12:30:15 iot-client[tank001]: establishing secure ECDHE session with server
+2024-08-30 12:30:16 iot-client[tank001]: ECDHE key exchange successful - PFS activated
+2024-08-30 12:30:16 iot-client[tank001]: secure ECDHE session established - ready for data transmission
+2024-08-30 12:30:16 iot-client[tank001]: encrypted sensor data transmitted - 96 bytes
+2024-08-30 12:30:21 iot-client[tank001]: encrypted sensor data transmitted - 96 bytes
+```
+
+**5. 스마트 재연결 기능**
+```
+# 서버 연결 실패 시 - 자동 재연결 시도
+2024-08-30 12:35:10 iot-client[tank001]: CONNECTION FAILED: Failed to connect to server 127.0.0.1:9999
+2024-08-30 12:35:10 iot-client[tank001]: connection attempt 1 failed
+2024-08-30 12:35:10 iot-client[tank001]: retrying in 5 seconds...
+2024-08-30 12:35:15 iot-client[tank001]: establishing secure ECDHE session with server
+2024-08-30 12:35:16 iot-client[tank001]: ECDHE key exchange successful - PFS activated
+
+# 인증 실패 시 - 보안상 즉시 종료
+2024-08-30 12:40:10 iot-client[tank001]: AUTHENTICATION FAILED: Server signature verification failed
+2024-08-30 12:40:10 iot-client[tank001]: FATAL: Authentication failed - shutting down
+2024-08-30 12:40:10 iot-client[tank001]: Possible causes: wrong device ID, server key mismatch, MITM attack
 ```
 
 ## 빌드 방법
@@ -252,9 +267,13 @@ python build_independent.py
 ```
 
 **빌드 결과:**
-- `IoT_Sensor_Server.exe` (약 15MB)
+- `IoT_Sensor_Server.exe` (15.11 MB)
 - 모든 의존성 포함된 단일 실행파일
 - 외부 폴더 의존성 없음
+- ECDHE + Perfect Forward Secrecy 암호화
+- 단순화된 5-명령어 콘솔 인터페이스
+- 실시간 모니터링 및 통계
+- 스마트 클라이언트 재연결 로직
 
 ### 클라이언트 빌드
 ```bash
@@ -263,9 +282,13 @@ python build_independent.py
 ```
 
 **빌드 결과:**
-- `IoT_Sensor_Client.exe` (약 15MB)
+- `IoT_Sensor_Client.exe` (14.85 MB)
 - 모든 의존성 포함된 단일 실행파일
 - config.json 파일만 필요
+- ECDHE + Perfect Forward Secrecy 암호화
+- 인증 실패 처리 포함 자동 재연결
+- 스마트 재시도 로직 (연결 vs 인증 실패 구분)
+- 향상된 오류 보고 및 로깅
 
 ### 빌드 요구사항
 ```bash
@@ -275,235 +298,135 @@ pip install pillow>=8.0.0  # 아이콘 생성용 (선택사항)
 
 ## 콘솔 명령어 가이드
 
+### 🚀 새로운 단순화된 명령어 시스템 (v1.0)
+
+**LIVECON 콘솔이 완전히 새롭게 단순화되었습니다!**
+
+#### 핵심 5개 명령어:
+
+| 명령어 | 설명 | 사용 예시 |
+|--------|------|-----------|
+| **`show`** | 정보 표시 | `show server`, `show clients`, `show logs`, `show crypto` |
+| **`monitor`** | 실시간 모니터링 | `monitor logs`, `monitor packets device001` |
+| **`stats`** | 통계 조회 | `stats`, `stats device001` |
+| **`control`** | 서버 제어 | `control stop`, `control restart`, `control status` |
+| **`help`** | 도움말 | `help` |
+
 ### 기본 명령어
 
-**status** - 서버 상태 확인
+**show** - 통합 정보 표시
 ```
-LIVECON> status
+# 서버 개요
+LIVECON> show
+LIVECON> show server
 
-=== LIVECON Server Status ===
-Server: 127.0.0.1:9999 | Status: RUNNING
-Uptime: 2h 15m 33s
-Database: Connected (3ms latency)
+# 연결된 클라이언트
+LIVECON> show clients
 
-Active Sessions: 2
-├── device001 (192.168.1.100) - Active for 1h 30m
-└── device002 (192.168.1.101) - Active for 45m
+# 최근 로그
+LIVECON> show logs  
 
-System Performance:
-• Total Packets: 1,247 (98.5% success rate)
-• Avg Response Time: 12ms
-• Memory Usage: 245MB
+# 암호화 상태
+LIVECON> show crypto
 ```
 
-**sessions** - ECDHE 세션 관리
+**monitor** - 실시간 모니터링  
 ```
-# 모든 세션 조회
-LIVECON> sessions
-Device ID       Created    Last Activity  Status    
-device001       14:30:15   14:35:20       ACTIVE    
-device002       14:45:10   14:50:25       ACTIVE    
+# 시스템 로그 실시간 추적
+LIVECON> monitor logs
 
-# 활성 세션 상세 조회
-LIVECON> sessions --active --details
-=== Active ECDHE Sessions (2) ===
-Device: device001
-  Address: 192.168.1.100:52341
-  Created: 2024-08-30 14:30:15
-  Duration: 1h 30m 45s
-  Packets: 1,080
-  Encryption: ChaCha20-Poly1305
-  Status: ACTIVE
+# 모든 패킷 모니터링
+LIVECON> monitor packets
+
+# 특정 디바이스 패킷 모니터링
+LIVECON> monitor packets device001
 ```
 
-**clients** - 연결된 클라이언트 정보
+**stats** - 통계 조회
 ```
-# 모든 클라이언트 조회
-LIVECON> clients
-Address            Device     Connected   Packets  Status
-192.168.1.100      device001  14:30:15    1,080    CONNECTED
-192.168.1.101      device002  14:45:10    543      CONNECTED
-
-# 특정 클라이언트 통계
-LIVECON> clients device001 --stats
-=== Client Details: device001 ===
-Address: 192.168.1.100:52341
-Connected: 2024-08-30 14:30:15 (1h 30m ago)
-
-Statistics:
-  Total Packets: 1,080
-  Successful: 1,063 (98.4%)
-  Failed: 17 (1.6%)
-  Alarms: 3
-  Errors: 2
-
-Recent Activity:
-  Last Packet: 2024-08-30 16:00:50
-  Water Temp: 23.2°C (Normal)
-  Dissolved O₂: 11.8 mg/L (Normal)
-  GPS: 9q8yy1yvpz
-```
-
-**logs** - 시스템 로그 조회
-```
-# 최근 로그 조회
-LIVECON> logs
-16:00:50 [INFO    ] [192.168.1.100] Sensor data received - Water: 23.2°C, DO: 11.8mg/L
-16:00:45 [INFO    ] [192.168.1.101] Sensor data received - Water: 24.1°C, DO: 10.5mg/L
-16:00:40 [WARNING ] [192.168.1.100] Water temperature approaching limit: 24.8°C
-
-# 특정 디바이스 실시간 로그
-LIVECON> logs --follow --grep "device001"
-16:01:05 [INFO    ] [device001] Sensor data received - Water: 23.4°C, DO: 11.9mg/L
-16:01:10 [INFO    ] [device001] Sensor data received - Water: 23.6°C, DO: 11.7mg/L
-16:01:15 [ALARM   ] [device001] Water temperature HIGH: 25.2°C (threshold: 25.0°C)
-^C (Ctrl+C로 중단)
-
-# 에러 로그만 조회
-LIVECON> logs --level ERROR --count 10
-16:00:35 [ERROR   ] [192.168.1.102] Connection timeout after 30 seconds
-15:58:22 [ERROR   ] [device003] Packet parsing failed: checksum mismatch
-15:55:10 [ERROR   ] [192.168.1.105] Authentication failed: invalid device ID
-```
-
-**packets** - 패킷 내용 검사
-```
-# 최근 패킷 조회
-LIVECON> packets --count 5
-Recent Packet Contents (5 packets):
-
-16:01:15 device001
-  STX: 0x24 | Device: 001 | Length: 32
-  Temperature: 24.5°C | Water: 23.2°C | DO: 11.8 mg/L
-  GPS: 9q8yy1yvpz (37.5665, 126.9780)
-  Time: 2024-08-30 16:01:15 | Checksum: 0x1A2B ✓
-
-# 실시간 패킷 모니터링
-LIVECON> packets device001 --follow --parsed
-Following packet contents for device 'device001'... (Press Ctrl+C to stop)
-
-16:01:20 device001 [PARSED]
-  Water Temperature: 23.4°C (Normal: 15-25°C)
-  Dissolved Oxygen: 11.9 mg/L (Normal: 10-12 mg/L)
-  Ambient Temperature: 24.2°C
-  Location: 9q8yy1yvpz (Seoul, South Korea)
-  Status: All parameters normal
-^C (Ctrl+C로 중단)
-
-# 원시 패킷 데이터
-LIVECON> packets device001 --raw --count 1
-Recent Packet Contents (1 packets):
-
-16:01:30 device001 [RAW]
-24 00 01 00 00 20 00 F5 04 AC 01 68 39 71 38 79 
-79 31 79 76 70 7A 07 E8 08 1E 10 01 1E 1A 2B 5C
-```
-
-**stats** - 성능 통계
-```
-# 전체 서버 통계
+# 서버 통계
 LIVECON> stats
-=== Server Statistics ===
-  Total Packets: 2,156
-  Successful: 2,131 (98.8%)
-  Failed: 25 (1.2%)
-  Total Alarms: 8
-  Total Errors: 3
 
-Performance:
-  Avg Response Time: 11.5ms
-  Success Rate: 98.8%
-  Uptime: 3h 22m 15s
-
-# 특정 클라이언트 상세 통계
-LIVECON> stats --client device001 --latency
-=== Client Statistics: device001 ===
-  Total Packets: 1,205
-  Successful: 1,187 (98.5%)
-  Failed: 18 (1.5%)
-  Status: CONNECTED
-
-Packet Intervals (ms):
-  Min: 4,998.2ms
-  Max: 5,002.8ms
-  Average: 5,000.1ms
-  Median: 5,000.0ms
-
-Client Latency Statistics (ms):
-  Min: 8.2ms
-  Max: 45.1ms
-  Average: 12.3ms
-  95th Percentile: 18.7ms
-  99th Percentile: 28.4ms
+# 특정 디바이스 통계  
+LIVECON> stats device001
 ```
 
-**crypto** - 암호화 시스템 정보
+**control** - 서버 제어
 ```
-LIVECON> crypto
-=== Cryptographic System Information ===
+# 서버 상태 확인
+LIVECON> control status
 
-Encryption Protocol: ECDHE + Ed25519 + ChaCha20-Poly1305
-├── Key Exchange: X25519 (Curve25519 ECDH)
-├── Authentication: Ed25519 (EdDSA signature)
-├── Encryption: ChaCha20-Poly1305 (AEAD)
-└── Forward Secrecy: Perfect (ephemeral keys)
+# 서버 중지
+LIVECON> control stop
 
-Server Identity:
-  Ed25519 Public Key: a1b2c3d4e5f6... (64 chars)
-  Key Fingerprint: SHA256:K7+MQ8bJhE...
-
-Active Sessions: 2
-├── device001: 128-bit session key, 1,205 packets encrypted
-└── device002: 128-bit session key, 623 packets encrypted
-
-Security Features:
-✓ Perfect Forward Secrecy enabled
-✓ Session key rotation every 1 hour
-✓ Anti-replay protection active
-✓ Cryptographic integrity verification
+# 서버 재시작
+LIVECON> control restart
 ```
 
-### 관리 명령어
+### 명령어 옵션 가이드
 
-**clear** - 콘솔 화면 지우기
-```
-LIVECON> clear
-```
+#### `show` 명령어 옵션
+```bash
+show [server|clients|logs|crypto]
 
-**help** - 도움말 보기
-```
-LIVECON> help
-Available Commands:
-  status      show server status and overview
-  sessions    list ECDHE sessions [device_id] [--active] [--expired] [--details]
-  clients     show connected clients [device_id|address] [--logs] [--stats]
-  logs        display system logs [--level LEVEL] [--count N] [--grep PATTERN] [--follow]
-  packets     inspect client packet contents [device_id] [--follow] [--raw] [--parsed] [--count N]
-  stats       show statistics [device_id] [--latency] [--processing] [--details] [--client ID]
-  crypto      display cryptographic system information
-  clear       clear the console screen
-  stop        stop the server
-  restart     restart the server
-  exit        exit console (server keeps running)
-  shutdown    shutdown server and exit console
-  help        show this help message
-
-Usage examples:
-  clients device001 --logs          Show client details with logs
-  sessions --active --details       Show detailed active sessions
-  logs --level ERROR --count 50     Show last 50 error logs
-  logs --follow --grep 'device001'  Follow logs for specific device
-  stats --latency --processing      Show detailed performance stats
-  stats --client device001 --latency Show client latency statistics
-  packets device001 --follow --parsed   Follow parsed packets from specific device
-  packets --count 20 --raw          Show last 20 raw packets
+# 사용 예시:
+show                # 서버 개요 (기본값)
+show server         # 상세 서버 상태
+show clients        # 연결된 클라이언트 목록  
+show logs          # 최근 시스템 로그 (10개)
+show crypto        # 암호화 시스템 정보
 ```
 
-**stop / shutdown** - 서버 종료
+#### `monitor` 명령어 옵션  
+```bash
+monitor [logs|packets] [device_id]
+
+# 사용 예시:
+monitor logs                    # 실시간 시스템 로그 추적
+monitor packets                 # 모든 패킷 실시간 모니터링
+monitor packets device001       # 특정 디바이스 패킷만 추적
 ```
-LIVECON> stop     # 서버 정지 (콘솔 유지)
-LIVECON> shutdown # 서버 종료 및 콘솔 종료
+
+#### `stats` 명령어 옵션
+```bash
+stats [device_id]
+
+# 사용 예시:
+stats                          # 전체 서버 통계
+stats device001                # device001 상세 통계
 ```
+
+#### `control` 명령어 옵션
+```bash
+control [status|stop|restart]
+
+# 사용 예시:
+control status                 # 서버 상태 확인 (기본값)
+control stop                   # 서버 중지 및 콘솔 종료
+control restart               # 서버 재시작
+```
+
+#### `help` 명령어 옵션
+```bash
+help [command]
+
+# 사용 예시:  
+help                          # 전체 명령어 도움말
+help show                     # show 명령어 상세 도움말
+help monitor                  # monitor 명령어 상세 도움말
+```
+
+### 새로운 기능
+
+#### 스마트 재연결 시스템
+클라이언트는 이제 연결 실패와 인증 실패를 구분하여 처리합니다:
+- **연결 실패**: 서버가 꺼져있거나 네트워크 문제 → 무한 재시도 (5초 간격)  
+- **인증 실패**: 서명 검증 실패나 보안 문제 → 즉시 종료 (보안상 중요)
+
+#### 콘솔 인터페이스 개선
+- 복잡한 명령어들을 5개 핵심 명령어로 단순화
+- 직관적인 문법으로 학습 곡선 단축
+- 이전 버전과의 호환성 유지 (자동 리다이렉트)
 
 ## 트러블슈팅
 
@@ -954,9 +877,13 @@ python build_independent.py
 ```
 
 **Build Output:**
-- `IoT_Sensor_Server.exe` (~15MB)
+- `IoT_Sensor_Server.exe` (15.11 MB)
 - Single executable with all dependencies
 - No external folder dependencies
+- ECDHE + Perfect Forward Secrecy encryption
+- Simplified 5-command console interface
+- Real-time monitoring and statistics
+- Smart client reconnection logic
 
 ### Client Build
 ```bash
@@ -965,9 +892,13 @@ python build_independent.py
 ```
 
 **Build Output:**
-- `IoT_Sensor_Client.exe` (~15MB)
+- `IoT_Sensor_Client.exe` (14.85 MB)
 - Single executable with all dependencies
 - Only requires config.json file
+- ECDHE + Perfect Forward Secrecy encryption
+- Automatic reconnection with authentication failure handling
+- Smart retry logic (connection vs authentication failures)
+- Enhanced error reporting and logging
 
 ### Build Requirements
 ```bash
@@ -977,235 +908,142 @@ pip install pillow>=8.0.0  # For icon generation (optional)
 
 ## Console Commands Guide
 
-### Basic Commands
+### 🚀 New Simplified Command System (v1.0)
 
-**status** - Check server status
+**LIVECON console has been completely redesigned with simplicity in mind!**
+
+#### Core 5 Commands:
+
+| Command | Description | Usage Examples |
+|---------|-------------|----------------|
+| **`show`** | Display information | `show server`, `show clients`, `show logs`, `show crypto` |
+| **`monitor`** | Real-time monitoring | `monitor logs`, `monitor packets device001` |
+| **`stats`** | View statistics | `stats`, `stats device001` |
+| **`control`** | Server control | `control stop`, `control restart`, `control status` |
+| **`help`** | Help system | `help` |
+
+### Command Usage
+
+**show** - Unified information display
 ```
-LIVECON> status
+# Server overview
+LIVECON> show
+LIVECON> show server
 
-=== LIVECON Server Status ===
-Server: 127.0.0.1:9999 | Status: RUNNING
-Uptime: 2h 15m 33s
-Database: Connected (3ms latency)
+# Connected clients
+LIVECON> show clients
 
-Active Sessions: 2
-├── device001 (192.168.1.100) - Active for 1h 30m
-└── device002 (192.168.1.101) - Active for 45m
+# Recent logs
+LIVECON> show logs  
 
-System Performance:
-• Total Packets: 1,247 (98.5% success rate)
-• Avg Response Time: 12ms
-• Memory Usage: 245MB
-```
-
-**sessions** - ECDHE session management
-```
-# List all sessions
-LIVECON> sessions
-Device ID       Created    Last Activity  Status    
-device001       14:30:15   14:35:20       ACTIVE    
-device002       14:45:10   14:50:25       ACTIVE    
-
-# Show detailed active sessions
-LIVECON> sessions --active --details
-=== Active ECDHE Sessions (2) ===
-Device: device001
-  Address: 192.168.1.100:52341
-  Created: 2024-08-30 14:30:15
-  Duration: 1h 30m 45s
-  Packets: 1,080
-  Encryption: ChaCha20-Poly1305
-  Status: ACTIVE
+# Cryptographic status
+LIVECON> show crypto
 ```
 
-**clients** - Connected client information
+**monitor** - Real-time monitoring  
 ```
-# List all clients
-LIVECON> clients
-Address            Device     Connected   Packets  Status
-192.168.1.100      device001  14:30:15    1,080    CONNECTED
-192.168.1.101      device002  14:45:10    543      CONNECTED
+# Follow system logs
+LIVECON> monitor logs
 
-# Client statistics
-LIVECON> clients device001 --stats
-=== Client Details: device001 ===
-Address: 192.168.1.100:52341
-Connected: 2024-08-30 14:30:15 (1h 30m ago)
+# Monitor all packets
+LIVECON> monitor packets
 
-Statistics:
-  Total Packets: 1,080
-  Successful: 1,063 (98.4%)
-  Failed: 17 (1.6%)
-  Alarms: 3
-  Errors: 2
-
-Recent Activity:
-  Last Packet: 2024-08-30 16:00:50
-  Water Temp: 23.2°C (Normal)
-  Dissolved O₂: 11.8 mg/L (Normal)
-  GPS: 9q8yy1yvpz
+# Monitor specific device packets
+LIVECON> monitor packets device001
 ```
 
-**logs** - System log viewing
+**stats** - Statistics viewing
 ```
-# View recent logs
-LIVECON> logs
-16:00:50 [INFO    ] [192.168.1.100] Sensor data received - Water: 23.2°C, DO: 11.8mg/L
-16:00:45 [INFO    ] [192.168.1.101] Sensor data received - Water: 24.1°C, DO: 10.5mg/L
-16:00:40 [WARNING ] [192.168.1.100] Water temperature approaching limit: 24.8°C
-
-# Real-time log following for specific device
-LIVECON> logs --follow --grep "device001"
-16:01:05 [INFO    ] [device001] Sensor data received - Water: 23.4°C, DO: 11.9mg/L
-16:01:10 [INFO    ] [device001] Sensor data received - Water: 23.6°C, DO: 11.7mg/L
-16:01:15 [ALARM   ] [device001] Water temperature HIGH: 25.2°C (threshold: 25.0°C)
-^C (Press Ctrl+C to stop)
-
-# View error logs only
-LIVECON> logs --level ERROR --count 10
-16:00:35 [ERROR   ] [192.168.1.102] Connection timeout after 30 seconds
-15:58:22 [ERROR   ] [device003] Packet parsing failed: checksum mismatch
-15:55:10 [ERROR   ] [192.168.1.105] Authentication failed: invalid device ID
-```
-
-**packets** - Packet content inspection
-```
-# View recent packets
-LIVECON> packets --count 5
-Recent Packet Contents (5 packets):
-
-16:01:15 device001
-  STX: 0x24 | Device: 001 | Length: 32
-  Temperature: 24.5°C | Water: 23.2°C | DO: 11.8 mg/L
-  GPS: 9q8yy1yvpz (37.5665, 126.9780)
-  Time: 2024-08-30 16:01:15 | Checksum: 0x1A2B ✓
-
-# Real-time packet monitoring
-LIVECON> packets device001 --follow --parsed
-Following packet contents for device 'device001'... (Press Ctrl+C to stop)
-
-16:01:20 device001 [PARSED]
-  Water Temperature: 23.4°C (Normal: 15-25°C)
-  Dissolved Oxygen: 11.9 mg/L (Normal: 10-12 mg/L)
-  Ambient Temperature: 24.2°C
-  Location: 9q8yy1yvpz (Seoul, South Korea)
-  Status: All parameters normal
-^C (Press Ctrl+C to stop)
-
-# View raw packet data
-LIVECON> packets device001 --raw --count 1
-Recent Packet Contents (1 packets):
-
-16:01:30 device001 [RAW]
-24 00 01 00 00 20 00 F5 04 AC 01 68 39 71 38 79 
-79 31 79 76 70 7A 07 E8 08 1E 10 01 1E 1A 2B 5C
-```
-
-**stats** - Performance statistics
-```
-# Overall server statistics
+# Server statistics
 LIVECON> stats
-=== Server Statistics ===
-  Total Packets: 2,156
-  Successful: 2,131 (98.8%)
-  Failed: 25 (1.2%)
-  Total Alarms: 8
-  Total Errors: 3
 
-Performance:
-  Avg Response Time: 11.5ms
-  Success Rate: 98.8%
-  Uptime: 3h 22m 15s
-
-# Detailed client statistics
-LIVECON> stats --client device001 --latency
-=== Client Statistics: device001 ===
-  Total Packets: 1,205
-  Successful: 1,187 (98.5%)
-  Failed: 18 (1.5%)
-  Status: CONNECTED
-
-Packet Intervals (ms):
-  Min: 4,998.2ms
-  Max: 5,002.8ms
-  Average: 5,000.1ms
-  Median: 5,000.0ms
-
-Client Latency Statistics (ms):
-  Min: 8.2ms
-  Max: 45.1ms
-  Average: 12.3ms
-  95th Percentile: 18.7ms
-  99th Percentile: 28.4ms
+# Specific device statistics  
+LIVECON> stats device001
 ```
 
-**crypto** - Cryptographic system information
+**control** - Server control
 ```
-LIVECON> crypto
-=== Cryptographic System Information ===
+# Check server status
+LIVECON> control status
 
-Encryption Protocol: ECDHE + Ed25519 + ChaCha20-Poly1305
-├── Key Exchange: X25519 (Curve25519 ECDH)
-├── Authentication: Ed25519 (EdDSA signature)
-├── Encryption: ChaCha20-Poly1305 (AEAD)
-└── Forward Secrecy: Perfect (ephemeral keys)
+# Stop server
+LIVECON> control stop
 
-Server Identity:
-  Ed25519 Public Key: a1b2c3d4e5f6... (64 chars)
-  Key Fingerprint: SHA256:K7+MQ8bJhE...
-
-Active Sessions: 2
-├── device001: 128-bit session key, 1,205 packets encrypted
-└── device002: 128-bit session key, 623 packets encrypted
-
-Security Features:
-✓ Perfect Forward Secrecy enabled
-✓ Session key rotation every 1 hour
-✓ Anti-replay protection active
-✓ Cryptographic integrity verification
+# Restart server
+LIVECON> control restart
 ```
 
-### Management Commands
+### Command Options Guide
 
-**clear** - Clear console screen
-```
-LIVECON> clear
-```
+#### `show` Command Options
+```bash
+show [server|clients|logs|crypto]
 
-**help** - Show help information
-```
-LIVECON> help
-Available Commands:
-  status      show server status and overview
-  sessions    list ECDHE sessions [device_id] [--active] [--expired] [--details]
-  clients     show connected clients [device_id|address] [--logs] [--stats]
-  logs        display system logs [--level LEVEL] [--count N] [--grep PATTERN] [--follow]
-  packets     inspect client packet contents [device_id] [--follow] [--raw] [--parsed] [--count N]
-  stats       show statistics [device_id] [--latency] [--processing] [--details] [--client ID]
-  crypto      display cryptographic system information
-  clear       clear the console screen
-  stop        stop the server
-  restart     restart the server
-  exit        exit console (server keeps running)
-  shutdown    shutdown server and exit console
-  help        show this help message
-
-Usage examples:
-  clients device001 --logs          Show client details with logs
-  sessions --active --details       Show detailed active sessions
-  logs --level ERROR --count 50     Show last 50 error logs
-  logs --follow --grep 'device001'  Follow logs for specific device
-  stats --latency --processing      Show detailed performance stats
-  stats --client device001 --latency Show client latency statistics
-  packets device001 --follow --parsed   Follow parsed packets from specific device
-  packets --count 20 --raw          Show last 20 raw packets
+# Usage examples:
+show                # Server overview (default)
+show server         # Detailed server status
+show clients        # Connected clients list  
+show logs          # Recent system logs (last 10)
+show crypto        # Cryptographic system info
 ```
 
-**stop / shutdown** - Server termination
+#### `monitor` Command Options  
+```bash
+monitor [logs|packets] [device_id]
+
+# Usage examples:
+monitor logs                    # Follow system logs in real-time
+monitor packets                 # Monitor all packets in real-time
+monitor packets device001       # Track specific device packets only
 ```
-LIVECON> stop     # Stop server (keep console)
-LIVECON> shutdown # Shutdown server and exit console
+
+#### `stats` Command Options
+```bash
+stats [device_id]
+
+# Usage examples:
+stats                          # Overall server statistics
+stats device001                # Detailed device001 statistics
 ```
+
+#### `control` Command Options
+```bash
+control [status|stop|restart]
+
+# Usage examples:
+control status                 # Check server status (default)
+control stop                   # Stop server and exit console
+control restart               # Restart server
+```
+
+#### `help` Command Options
+```bash
+help [command]
+
+# Usage examples:  
+help                          # Full command help
+help show                     # Detailed help for show command
+help monitor                  # Detailed help for monitor command
+```
+
+### New Features & Improvements
+
+#### Smart Reconnection System
+Clients now distinguish between connection failures and authentication failures:
+- **Connection Failures**: Server down or network issues → Infinite retry (5-second intervals)  
+- **Authentication Failures**: Signature verification failed or security issues → Immediate shutdown (critical for security)
+
+#### Console Interface Enhancements
+- Complex commands simplified to 5 core commands for better usability
+- Intuitive syntax reduces learning curve
+- Backward compatibility maintained (automatic redirects)
+- Clean, emoji-free interface for professional environments
+
+#### Enhanced Security & Performance
+- ECDHE + Perfect Forward Secrecy encryption
+- Improved error handling and logging
+- Thread-safe operations with better resource management
+- Faster startup and shutdown procedures
 
 ## Troubleshooting
 
