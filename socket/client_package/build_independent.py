@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Independent Client Package Build Script
+Independent Client Package Build Script  
 Creates fully independent executable with all modules embedded
+Features: ECDHE+PFS encryption, auto-reconnection, smart error handling
 """
 
 import subprocess
@@ -100,7 +101,15 @@ def build_independent_client():
             "--hidden-import=node_module.generate_packet", 
             "--hidden-import=node_module.geohash_encode",
             
-            # 외부 라이브러리
+            # 새로운 암호화 및 인증 라이브러리 (ECDHE + Ed25519)
+            "--hidden-import=cryptography.hazmat.primitives.asymmetric.x25519",
+            "--hidden-import=cryptography.hazmat.primitives.asymmetric.ed25519", 
+            "--hidden-import=cryptography.hazmat.primitives.ciphers.aead",
+            "--hidden-import=cryptography.hazmat.primitives.serialization",
+            "--hidden-import=cryptography.hazmat.primitives.hashes",
+            "--hidden-import=cryptography.hazmat.primitives.kdf.hkdf",
+            
+            # 외부 라이브러리 (하위 호환성)
             "--hidden-import=Crypto.PublicKey.RSA",
             "--hidden-import=Crypto.Cipher.PKCS1_OAEP",
             
@@ -129,6 +138,10 @@ def build_independent_client():
                 print("- All modules embedded in executable")
                 print("- No external folder dependencies")
                 print("- Complete independent execution with config.json only")
+                print("- ECDHE + Perfect Forward Secrecy encryption")  
+                print("- Automatic reconnection with authentication failure handling")
+                print("- Smart retry logic (connection vs authentication failures)")
+                print("- Enhanced error reporting and logging")
                 return True
             else:
                 print(".exe file was not generated.")

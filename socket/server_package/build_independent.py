@@ -2,6 +2,7 @@
 """
 Independent Server Package Build Script
 Creates fully independent executable with all modules embedded
+Features: ECDHE+PFS encryption, simplified console, smart reconnection
 """
 
 import subprocess
@@ -108,6 +109,14 @@ def build_independent_server():
             "--hidden-import=server_module.sensor_monitor",
             "--hidden-import=server_module.packet_parser",
             
+            # 새로운 암호화 및 인증 라이브러리 (ECDHE + Ed25519)
+            "--hidden-import=cryptography.hazmat.primitives.asymmetric.x25519",
+            "--hidden-import=cryptography.hazmat.primitives.asymmetric.ed25519", 
+            "--hidden-import=cryptography.hazmat.primitives.ciphers.aead",
+            "--hidden-import=cryptography.hazmat.primitives.serialization",
+            "--hidden-import=cryptography.hazmat.primitives.hashes",
+            "--hidden-import=cryptography.hazmat.primitives.kdf.hkdf",
+            
             # 외부 라이브러리
             "--hidden-import=pymysql",
             "--hidden-import=Crypto.PublicKey.RSA",
@@ -138,6 +147,10 @@ def build_independent_server():
                 print("- All modules embedded in executable")
                 print("- No external folder dependencies") 
                 print("- Complete independent execution as single file")
+                print("- ECDHE + Perfect Forward Secrecy encryption")
+                print("- Simplified 5-command console interface")
+                print("- Real-time monitoring and statistics")
+                print("- Smart client reconnection logic")
                 return True
             else:
                 print(".exe file was not generated.")

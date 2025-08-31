@@ -299,6 +299,7 @@ class ClientManager:
                 # 해당 센서의 데이터만 포함한 딕셔너리 생성
                 single_sensor_data = {
                     'DEVICE_ID': device_id,
+                    'ID': sensor_id,
                     data_key: parsed_data[data_key]
                 }
                 
