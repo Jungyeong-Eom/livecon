@@ -370,6 +370,7 @@ Type '\033[1mhelp\033[0m' for available commands or '\033[1mexit\033[0m' to quit
         
         try:
             seen_logs = set()
+            cleanup_counter = 0
             
             while True:
                 try:
@@ -388,12 +389,25 @@ Type '\033[1mhelp\033[0m' for available commands or '\033[1mexit\033[0m' to quit
                                 
                                 timestamp = log['timestamp'].strftime("%H:%M:%S")
                                 print(f"{timestamp} \033[32m[PACKET]\033[0m {message}")
+                                # Force immediate output
+                                import sys
+                                sys.stdout.flush()
+                    
+                    # Periodic cleanup of seen_logs to prevent memory growth
+                    cleanup_counter += 1
+                    if cleanup_counter >= 20:  # Every 10 seconds (20 * 0.5s)
+                        # Keep only current log IDs
+                        current_ids = {id(log) for log in logs}
+                        seen_logs &= current_ids  # Intersection - keep only existing IDs
+                        cleanup_counter = 0
                     
                     time.sleep(0.5)
                     
                 except KeyboardInterrupt:
                     break
-                except Exception:
+                except Exception as e:
+                    # For debugging - show what went wrong
+                    print(f"\033[31mDebug error:\033[0m {e}")
                     time.sleep(1)
                     continue
                     
