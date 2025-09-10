@@ -49,7 +49,14 @@ def establish_ecdhe_session(device_id, server_address, server_port):
 
 def load_config():
     """Load configuration file"""
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+    # PyInstaller 호환: exe 파일이 있는 실제 디렉토리에서 config.json 찾기
+    if hasattr(sys, '_MEIPASS'):
+        # PyInstaller로 빌드된 경우: exe 파일 위치 기준
+        exe_dir = os.path.dirname(sys.executable)
+        config_path = os.path.join(exe_dir, 'config.json')
+    else:
+        # 일반 Python 스크립트 실행: 스크립트 파일 위치 기준
+        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
     
     # 기본 설정
     default_config = {

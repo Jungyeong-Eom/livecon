@@ -18,7 +18,7 @@ class SocketCreationError(ServerCoreError):
     pass
 
 class ServerCore:
-    def __init__(self, console_manager=None, host='localhost', port=12351):
+    def __init__(self, console_manager=None, host='0.0.0.0', port=12351):
         self.host = host
         self.port = port
         self.console_manager = console_manager
