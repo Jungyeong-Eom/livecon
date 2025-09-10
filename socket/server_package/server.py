@@ -26,7 +26,7 @@ from server_module.server_core import ServerCore
 from server_module.client_manager import ClientManager
 
 class LiveConServer:
-    def __init__(self, host='localhost', port=12351):
+    def __init__(self, host='0.0.0.0', port=12351):
         self.host = host
         self.port = port
         self.running = False
@@ -261,7 +261,7 @@ Status: \033[32mRUNNING\033[0m  Port: \033[90m{self.port}\033[0m
 def start_interactive_server():
     """인터랙티브 콘솔 모드 서버 시작"""
     
-    server = LiveConServer()
+    server = LiveConServer(host='0.0.0.0')
     
     print("\nStarting server components...")
     
