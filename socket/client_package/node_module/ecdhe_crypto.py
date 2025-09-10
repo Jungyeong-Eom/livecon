@@ -42,7 +42,8 @@ class ECDHECrypto:
             
             # Connect to server for key exchange
             exchange_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            exchange_socket.settimeout(30)
+            exchange_socket.settimeout(60)  # 네트워크 연결을 위해 타임아웃 증가
+            exchange_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # 즉시 전송
             try:
                 exchange_socket.connect((server_address, server_port))
             except (socket.error, OSError) as e:

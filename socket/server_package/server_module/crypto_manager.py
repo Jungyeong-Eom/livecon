@@ -93,7 +93,7 @@ class CryptoManager:
     def get_server_public_key(self) -> bytes:
         """Get server's Ed25519 public key for client verification"""
         if not self.server_signing_key:
-            raise Exception("Server signing key not initialized")
+            raise Exception("Server signing key not initialized - call initialize_keys() first")
             
         public_key = self.server_signing_key.public_key()
         return public_key.public_bytes(
@@ -104,6 +104,9 @@ class CryptoManager:
     def perform_key_exchange(self, device_id: str, client_public_key_bytes: bytes) -> Tuple[bytes, bytes]:
         """Perform ECDHE key exchange with client"""
         try:
+            # Check if server signing key is initialized
+            if not self.server_signing_key:
+                raise Exception("Server signing key not initialized - call initialize_keys() first")
             # Parse client's X25519 public key
             client_public_key = X25519PublicKey.from_public_bytes(client_public_key_bytes)
             
