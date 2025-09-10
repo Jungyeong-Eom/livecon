@@ -36,7 +36,8 @@ class ClientManager:
     def handle_client(self, client_socket, client_address):
         """클라이언트 연결 처리 - ECDHE 키 교환 지원"""
         client_addr_str = self.connection_manager.add_client(client_address)
-        client_socket.settimeout(30)  # ECDHE 키 교환을 위해 타임아웃 증가
+        client_socket.settimeout(60)  # ECDHE 키 교환을 위해 타임아웃 증가
+        client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # 즉시 전송
         
         # 클라이언트 연결 통계 업데이트
         if self.console_manager:
@@ -104,7 +105,7 @@ class ClientManager:
             parts = data.decode().split(':', 2)
             if len(parts) != 3 or parts[0] != "ECDHE_KEY_EXCHANGE":
                 self._log(f"[{client_addr_str}] Invalid key exchange format", "error")
-                client_socket.send(b"ERROR: INVALID_KEY_EXCHANGE_FORMAT")
+                self._send_error_response(client_socket, "INVALID_KEY_EXCHANGE_FORMAT")
                 return None
             
             device_id = parts[1]
@@ -117,7 +118,7 @@ class ClientManager:
                     raise ValueError("Invalid key length")
             except ValueError:
                 self._log(f"[{client_addr_str}] Invalid X25519 public key format", "error")
-                client_socket.send(b"ERROR: INVALID_PUBLIC_KEY")
+                self._send_error_response(client_socket, "INVALID_PUBLIC_KEY")
                 return None
             
             # ECDHE 키 교환 수행
@@ -129,9 +130,11 @@ class ClientManager:
             server_ed25519_pubkey = self.crypto_manager.get_server_public_key()
             response = server_public_key + signature + server_ed25519_pubkey
             
-            # 응답 길이 전송 (4바이트) + 응답 데이터
+            # 응답 길이 전송 (4바이트) 먼저
             response_length = len(response).to_bytes(4, 'big')
-            client_socket.send(response_length + response)
+            client_socket.send(response_length)
+            # 그 다음 응답 데이터 전송
+            client_socket.send(response)
             
             self._log(f"[{client_addr_str}] ECDHE key exchange completed for device {device_id}")
             return device_id
@@ -139,10 +142,24 @@ class ClientManager:
         except Exception as e:
             self._log(f"[{client_addr_str}] Key exchange failed: {e}", "error")
             try:
-                client_socket.send(b"ERROR: KEY_EXCHANGE_FAILED")
+                self._send_error_response(client_socket, "KEY_EXCHANGE_FAILED")
             except:
                 pass
             return None
+    
+    def _send_error_response(self, client_socket, error_message):
+        """Send error response with proper length header"""
+        try:
+            error_data = f"ERROR: {error_message}".encode()
+            response_length = len(error_data)
+            
+            # Send response length first (4 bytes)
+            client_socket.send(response_length.to_bytes(4, 'big'))
+            # Send error message
+            client_socket.send(error_data)
+            
+        except Exception as e:
+            self._log(f"Failed to send error response: {e}", "error")
     
     def _handle_legacy_public_key_request(self, client_socket, client_addr_str):
         """레거시 RSA 공개키 요청 처리 (하위 호환성)"""
