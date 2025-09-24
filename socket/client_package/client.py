@@ -58,10 +58,10 @@ def load_config():
         # 일반 Python 스크립트 실행: 스크립트 파일 위치 기준
         config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
     
-    # 기본 설정
+    # 기본 설정 (원격 연결 가능하도록 IP 주소 안내)
     default_config = {
         "server": {
-            "address": "localhost", 
+            "address": "SERVER_IP_ADDRESS",  # 실제 서버 IP 주소로 변경 필요
             "port": 12351
         },
         "client": {
@@ -107,10 +107,10 @@ def main_client_loop():
     # device_id를 문자열에서 정수로 변환 (device001 -> 1)
     device_num = int(DEVICE_ID.replace('device', '')) if DEVICE_ID.startswith('device') else 1
     
-    # Connection retry settings
+    # Connection retry settings (원격 연결용 최적화)
     max_connection_retries = -1  # Infinite retries for connection failures
-    connection_retry_delay = 5   # Wait 5 seconds between connection retries
-    reconnect_delay = 10         # Wait 10 seconds before reconnecting after session loss
+    connection_retry_delay = 10  # 원격 연결용 대기시간 증가
+    reconnect_delay = 15         # 재연결 전 대기시간 증가
     
     ecdhe_crypto = None
     client_socket = None

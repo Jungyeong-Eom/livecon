@@ -42,8 +42,10 @@ class ECDHECrypto:
             
             # Connect to server for key exchange
             exchange_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            exchange_socket.settimeout(60)  # 네트워크 연결을 위해 타임아웃 증가
+            exchange_socket.settimeout(120)  # 원격 연결을 위해 타임아웃 증가
             exchange_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # 즉시 전송
+            exchange_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)  # Keep-alive 활성화
+            exchange_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # 주소 재사용 허용
             try:
                 exchange_socket.connect((server_address, server_port))
             except (socket.error, OSError) as e:
@@ -54,21 +56,31 @@ class ECDHECrypto:
                 key_exchange_request = f"ECDHE_KEY_EXCHANGE:{self.device_id}:{client_public_key_bytes.hex()}"
                 exchange_socket.send(key_exchange_request.encode())
                 
-                # Receive response length (4 bytes)
-                response_length_bytes = exchange_socket.recv(4)
-                if len(response_length_bytes) != 4:
-                    raise Exception("Failed to receive response length")
+                # Receive response length (4 bytes) with timeout handling
+                response_length_bytes = b""
+                while len(response_length_bytes) < 4:
+                    try:
+                        chunk = exchange_socket.recv(4 - len(response_length_bytes))
+                        if not chunk:
+                            raise Exception("Connection closed while receiving response length")
+                        response_length_bytes += chunk
+                    except socket.timeout:
+                        raise ConnectionError("Timeout while receiving response length from server")
                 
                 response_length = int.from_bytes(response_length_bytes, 'big')
                 print(f"Expecting key exchange response: {response_length} bytes")
                 
-                # Receive response data
+                # Receive response data with improved error handling
                 response_data = b""
                 while len(response_data) < response_length:
-                    chunk = exchange_socket.recv(response_length - len(response_data))
-                    if not chunk:
-                        raise Exception("Connection closed during key exchange response")
-                    response_data += chunk
+                    try:
+                        remaining = response_length - len(response_data)
+                        chunk = exchange_socket.recv(min(remaining, 4096))  # 청크 크기 제한
+                        if not chunk:
+                            raise Exception("Connection closed during key exchange response")
+                        response_data += chunk
+                    except socket.timeout:
+                        raise ConnectionError("Timeout while receiving key exchange response from server")
                 
                 if response_data.startswith(b"ERROR:"):
                     error_msg = response_data.decode()
