@@ -57,16 +57,16 @@ class KeyExchangeHandler:
                     return False, None
                 
                 try:
-                    # Perform key exchange
-                    server_public_key_bytes, signature = self.crypto_manager.perform_key_exchange(
+                    # Perform key exchange (returns salt now)
+                    server_public_key_bytes, signature, hkdf_salt = self.crypto_manager.perform_key_exchange(
                         device_id, client_public_key_bytes
                     )
-                    
+
                     # Get server's Ed25519 public key for client verification
                     server_ed25519_public_key = self.crypto_manager.get_server_public_key()
-                    
-                    # Prepare response: server_x25519_pubkey (32) + signature (64) + server_ed25519_pubkey (32)
-                    response_data = server_public_key_bytes + signature + server_ed25519_public_key
+
+                    # Prepare response: server_x25519_pubkey (32) + signature (64) + server_ed25519_pubkey (32) + hkdf_salt (16)
+                    response_data = server_public_key_bytes + signature + server_ed25519_public_key + hkdf_salt
                     
                     # Send response length first (4 bytes)
                     response_length = len(response_data)

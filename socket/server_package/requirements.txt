@@ -1,5 +1,5 @@
 # Server dependencies
-pycryptodome>=3.15.0  # ECDHE cryptography and RSA decryption
+cryptography>=41.0.0  # ECDHE (X25519), Ed25519, ChaCha20Poly1305, HKDF
 pymysql>=1.0.0        # MySQL database connection
 
 # Build tools

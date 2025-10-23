@@ -12,14 +12,14 @@ if current_dir not in sys.path:
 from node_module.ecdhe_crypto import ECDHECrypto, AuthenticationError, ConnectionError
 from node_module.generate_packet import generate_random_packet
 
-def establish_ecdhe_session(device_id, server_address, server_port):
+def establish_ecdhe_session(device_id, server_address, server_port, pinned_server_pubkey=None):
     """Establish ECDHE session with server and return crypto, socket, and error type"""
     timestamp = time.strftime("%b %d %H:%M:%S", time.localtime())
     print(f"{timestamp} iot-client[{device_id}]: starting ECDHE session to {server_address}:{server_port}")
-    
+
     try:
-        # Create ECDHE crypto object
-        ecdhe_crypto = ECDHECrypto(device_id)
+        # Create ECDHE crypto object with pinned server public key
+        ecdhe_crypto = ECDHECrypto(device_id, pinned_server_pubkey=pinned_server_pubkey)
         
         # Perform key exchange and get socket
         socket_conn = ecdhe_crypto.perform_key_exchange(server_address, server_port)
@@ -62,7 +62,8 @@ def load_config():
     default_config = {
         "server": {
             "address": "SERVER_IP_ADDRESS",  # 실제 서버 IP 주소로 변경 필요
-            "port": 12351
+            "port": 12351,
+            "ed25519_pubkey_hex": None  # 서버 Ed25519 공개키 (hex 형식, 64자) - MITM 방지용
         },
         "client": {
             "device_id": "device001",
@@ -95,12 +96,29 @@ def load_config():
 config = load_config()
 SERVER_ADDRESS = config['server']['address']
 SERVER_PORT = config['server']['port']
+SERVER_PUBKEY_HEX = config['server'].get('ed25519_pubkey_hex')
 DEVICE_ID = config['client']['device_id']
 SEND_INTERVAL = config['client']['send_interval']
+
+# Parse server public key if configured
+PINNED_SERVER_PUBKEY = None
+if SERVER_PUBKEY_HEX:
+    try:
+        PINNED_SERVER_PUBKEY = bytes.fromhex(SERVER_PUBKEY_HEX)
+        if len(PINNED_SERVER_PUBKEY) != 32:
+            print(f"ERROR: Invalid server public key length: {len(PINNED_SERVER_PUBKEY)} (expected 32 bytes)")
+            PINNED_SERVER_PUBKEY = None
+    except ValueError:
+        print(f"ERROR: Invalid server public key hex format")
+        PINNED_SERVER_PUBKEY = None
 
 timestamp = time.strftime("%b %d %H:%M:%S", time.localtime())
 print(f"{timestamp} iot-client: starting IoT sensor client")
 print(f"{timestamp} iot-client: server={SERVER_ADDRESS}:{SERVER_PORT} device_id={DEVICE_ID} interval={SEND_INTERVAL}s")
+if PINNED_SERVER_PUBKEY:
+    print(f"{timestamp} iot-client: server key pinning ENABLED (MITM protection active)")
+else:
+    print(f"{timestamp} iot-client: WARNING - server key pinning DISABLED (vulnerable to MITM)")
 
 def main_client_loop():
     """Main client loop with reconnection logic"""
@@ -122,8 +140,10 @@ def main_client_loop():
             while True:
                 timestamp = time.strftime("%b %d %H:%M:%S", time.localtime())
                 print(f"{timestamp} iot-client[{DEVICE_ID}]: establishing secure ECDHE session with server")
-                
-                ecdhe_crypto, client_socket, error_type = establish_ecdhe_session(DEVICE_ID, SERVER_ADDRESS, SERVER_PORT)
+
+                ecdhe_crypto, client_socket, error_type = establish_ecdhe_session(
+                    DEVICE_ID, SERVER_ADDRESS, SERVER_PORT, pinned_server_pubkey=PINNED_SERVER_PUBKEY
+                )
                 
                 if ecdhe_crypto and client_socket:
                     timestamp = time.strftime("%b %d %H:%M:%S", time.localtime())
