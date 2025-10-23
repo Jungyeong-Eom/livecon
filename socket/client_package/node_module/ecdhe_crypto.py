@@ -17,13 +17,15 @@ class ConnectionError(Exception):
 
 class ECDHECrypto:
     """Client-side ECDHE + Ed25519 signature crypto with PFS"""
-    
-    def __init__(self, device_id: str):
+
+    def __init__(self, device_id: str, pinned_server_pubkey: Optional[bytes] = None):
         self.device_id = device_id
         self.session_key = None
         self.cipher = None
         self.nonce_counter = 0
+        self.nonce_session_prefix = None  # 4-byte session prefix for nonce
         self.server_ed25519_pubkey = None
+        self.pinned_server_pubkey = pinned_server_pubkey  # For key pinning (MITM protection)
         
     def perform_key_exchange(self, server_address: str, server_port: int) -> Optional[socket.socket]:
         """Perform ECDHE key exchange with server and return connected socket"""
@@ -69,7 +71,7 @@ class ECDHECrypto:
                 
                 response_length = int.from_bytes(response_length_bytes, 'big')
                 print(f"Expecting key exchange response: {response_length} bytes")
-                
+
                 # Receive response data with improved error handling
                 response_data = b""
                 while len(response_data) < response_length:
@@ -81,7 +83,7 @@ class ECDHECrypto:
                         response_data += chunk
                     except socket.timeout:
                         raise ConnectionError("Timeout while receiving key exchange response from server")
-                
+
                 if response_data.startswith(b"ERROR:"):
                     error_msg = response_data.decode()
                     # Check if it's authentication/signature failure
@@ -89,42 +91,57 @@ class ECDHECrypto:
                         raise AuthenticationError(f"Authentication failed: {error_msg}")
                     else:
                         raise ConnectionError(f"Server error: {error_msg}")
-                
-                # Parse response: server_x25519_pubkey (32) + signature (64) + server_ed25519_pubkey (32)
-                if len(response_data) != 128:  # 32 + 64 + 32
-                    raise Exception(f"Invalid response length: {len(response_data)} bytes")
+
+                # Parse response: server_x25519_pubkey (32) + signature (64) + server_ed25519_pubkey (32) + hkdf_salt (16)
+                if len(response_data) != 144:  # 32 + 64 + 32 + 16
+                    raise Exception(f"Invalid response length: {len(response_data)} bytes (expected 144)")
                 
                 server_x25519_pubkey_bytes = response_data[:32]
                 signature = response_data[32:96]
                 self.server_ed25519_pubkey_bytes = response_data[96:128]
-                
-                # Verify signature
+                hkdf_salt = response_data[128:144]  # 16-byte HKDF salt
+
+                # CRITICAL: Verify server public key against pinned key (MITM protection)
+                if self.pinned_server_pubkey is not None:
+                    if self.server_ed25519_pubkey_bytes != self.pinned_server_pubkey:
+                        raise AuthenticationError(
+                            "Server public key does NOT match pinned key - MITM attack detected! "
+                            "Connection rejected."
+                        )
+                    print("✓ Server public key pinning validated successfully")
+                else:
+                    print("WARNING: No server public key pinning configured - vulnerable to MITM attacks")
+
+                # Verify signature (includes salt now)
                 server_ed25519_pubkey = Ed25519PublicKey.from_public_bytes(self.server_ed25519_pubkey_bytes)
-                message_to_verify = server_x25519_pubkey_bytes + client_public_key_bytes + self.device_id.encode()
-                
+                message_to_verify = server_x25519_pubkey_bytes + client_public_key_bytes + self.device_id.encode() + hkdf_salt
+
                 try:
                     server_ed25519_pubkey.verify(signature, message_to_verify)
-                    print("Server signature verification successful")
+                    print("✓ Server signature verification successful")
                 except Exception:
                     raise AuthenticationError("Server signature verification failed - potential MITM attack")
-                
+
                 # Perform ECDHE
                 server_x25519_pubkey = X25519PublicKey.from_public_bytes(server_x25519_pubkey_bytes)
                 shared_secret = client_private_key.exchange(server_x25519_pubkey)
-                
-                # Derive session key using HKDF
+
+                # Derive session key using HKDF with salt
                 self.session_key = HKDF(
                     algorithm=hashes.SHA256(),
                     length=32,  # ChaCha20Poly1305 key size
-                    salt=None,
-                    info=f"session_key_{self.device_id}".encode()
+                    salt=hkdf_salt,  # CRITICAL: Use server-provided random salt
+                    info=b"LIVECON_v1.0_session_key"  # Clear protocol context
                 ).derive(shared_secret)
                 
                 # Initialize cipher with session key
                 self.cipher = ChaCha20Poly1305(self.session_key)
                 self.nonce_counter = 0
-                
+                # Generate 4-byte session-specific nonce prefix (prevents nonce reuse across sessions)
+                self.nonce_session_prefix = secrets.token_bytes(4)
+
                 print(f"ECDHE key exchange completed successfully for device {self.device_id}")
+                print(f"✓ Session nonce prefix: {self.nonce_session_prefix.hex()}")
                 print("Perfect Forward Secrecy (PFS) established")
                 
                 # Return the connected socket for data communication
@@ -139,34 +156,48 @@ class ECDHECrypto:
             return None
     
     def encrypt(self, plaintext: bytes) -> bytes:
-        """Encrypt data with session key"""
+        """Encrypt data with session key
+
+        Uses AEAD with Additional Authenticated Data (AAD) for context binding
+        """
         if not self.cipher:
             raise Exception("Session not established - perform key exchange first")
-        
+
         nonce = self._get_next_nonce()
-        ciphertext = self.cipher.encrypt(nonce, plaintext, None)
+        # AAD: device_id + protocol version (prevents context confusion attacks)
+        aad = self.device_id.encode() + b"|LIVECON_v1.0"
+        ciphertext = self.cipher.encrypt(nonce, plaintext, aad)
         return nonce + ciphertext
     
     def decrypt(self, ciphertext: bytes) -> bytes:
-        """Decrypt data with session key"""
+        """Decrypt data with session key
+
+        Uses AEAD with Additional Authenticated Data (AAD) for context binding
+        """
         if not self.cipher:
             raise Exception("Session not established - perform key exchange first")
-        
+
         if len(ciphertext) < 12:
             raise ValueError("Ciphertext too short")
-        
+
         nonce = ciphertext[:12]
         encrypted_data = ciphertext[12:]
-        
-        return self.cipher.decrypt(nonce, encrypted_data, None)
+
+        # AAD: device_id + protocol version (must match encryption AAD)
+        aad = self.device_id.encode() + b"|LIVECON_v1.0"
+        return self.cipher.decrypt(nonce, encrypted_data, aad)
     
     def _get_next_nonce(self) -> bytes:
-        """Generate unique nonce for each encryption"""
+        """Generate unique nonce for each encryption
+
+        Format: 4-byte session prefix + 8-byte counter (12 bytes total)
+        - Session prefix: random per session, prevents nonce reuse across sessions
+        - Counter: monotonically increasing, prevents nonce reuse within session
+        """
         self.nonce_counter += 1
-        # 12 bytes nonce: 8 bytes counter + 4 bytes random
+        # 12 bytes nonce: 4 bytes session prefix + 8 bytes counter
         counter_bytes = self.nonce_counter.to_bytes(8, 'big')
-        random_bytes = secrets.token_bytes(4)
-        return counter_bytes + random_bytes
+        return self.nonce_session_prefix + counter_bytes
     
     def is_session_active(self) -> bool:
         """Check if session is active"""

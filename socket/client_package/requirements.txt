@@ -1,5 +1,5 @@
 # Client (IoT sensor node) dependencies
-pycryptodome>=3.15.0  # ECDHE cryptography and RSA encryption
+cryptography>=41.0.0  # ECDHE (X25519), Ed25519, ChaCha20Poly1305, HKDF
 
 # Build tools
 pyinstaller>=5.0      # Executable file generation

@@ -121,14 +121,14 @@ class ClientManager:
                 self._send_error_response(client_socket, "INVALID_PUBLIC_KEY")
                 return None
             
-            # ECDHE 키 교환 수행
-            server_public_key, signature = self.crypto_manager.perform_key_exchange(
+            # ECDHE 키 교환 수행 (salt 포함)
+            server_public_key, signature, hkdf_salt = self.crypto_manager.perform_key_exchange(
                 device_id, client_public_key_bytes
             )
-            
-            # 응답 전송: server_pubkey + signature + server_ed25519_pubkey
+
+            # 응답 전송: server_pubkey + signature + server_ed25519_pubkey + hkdf_salt
             server_ed25519_pubkey = self.crypto_manager.get_server_public_key()
-            response = server_public_key + signature + server_ed25519_pubkey
+            response = server_public_key + signature + server_ed25519_pubkey + hkdf_salt
             
             # 응답 길이 전송 (4바이트) 먼저
             response_length = len(response).to_bytes(4, 'big')
