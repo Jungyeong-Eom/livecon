@@ -279,18 +279,11 @@ cd client_package/dist
 
 상세한 기술 문서는 다음 파일을 참조하세요:
 
-- **[CODE_DOCUMENTATION.md](CODE_DOCUMENTATION.md)** - 전체 코드 설명 문서 (3,247줄)
+- **[CODE_DOCUMENTATION.md](CODE_DOCUMENTATION.md)** - 전체 코드 설명 문서
   - 시스템 아키텍처
-  - 모든 모듈 상세 설명
-  - 보안 프로토콜 설명
-  - 데이터베이스 스키마
+  - 핵심 모듈 설명
+  - 보안 프로토콜 상세 설명
   - 빌드 및 배포 가이드
-  - 트러블슈팅
-
-- **[DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md)** - 개발 가이드
-  - 개발 환경 설정
-  - 코딩 규칙
-  - 보안 가이드라인
 
 ## 📁 프로젝트 구조
 
@@ -329,7 +322,6 @@ livecon-iot/
 │   └── schema.sql              # 데이터베이스 스키마
 │
 ├── CODE_DOCUMENTATION.md        # 전체 코드 설명 문서
-├── DEVELOPMENT_GUIDE.md         # 개발 가이드
 ├── README.md                    # 이 파일
 └── LICENSE                      # 라이선스 파일
 ```
@@ -431,12 +423,6 @@ livecon-iot/
 
 이 프로젝트는 현재 비공개 프로젝트입니다. 기여에 대한 문의는 프로젝트 관리자에게 연락하세요.
 
-## 📞 연락처
-
-- **프로젝트 관리자**: LIVECON IoT Team
-- **이메일**: contact@livecon.io
-- **이슈 트래커**: [GitHub Issues](https://github.com/your-org/livecon-iot/issues)
-
 ## 📄 라이선스
 
 이 프로젝트는 독점 라이선스 하에 있습니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
@@ -444,5 +430,3 @@ livecon-iot/
 ---
 
 **© 2025 LIVECON IoT Team. All rights reserved.**
-
-**Made with ❤️ and 🔒 by Claude Code**
