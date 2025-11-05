@@ -99,14 +99,14 @@ Type '\033[1mhelp\033[0m' for available commands or '\033[1mexit\033[0m' to quit
     def do_control(self, arg):
         """Control server - simplified server control
         Usage: control [stop|restart|status]
-        
+
         Examples:
           control status    Show server status
           control stop      Stop the server
           control restart   Restart the server
         """
         action = arg.strip().lower()
-        
+
         if not action or action == 'status':
             self._show_server_status()
         elif action == 'stop':
@@ -117,6 +117,30 @@ Type '\033[1mhelp\033[0m' for available commands or '\033[1mexit\033[0m' to quit
         else:
             print(f"\033[31mError:\033[0m Unknown action '{action}'")
             print("Usage: control [stop|restart|status]")
+
+    def do_db(self, arg):
+        """Database management - manage database setup
+        Usage: db [init|check|status|config]
+
+        Examples:
+          db status    Show database connection status
+          db check     Check if database exists
+          db config    Configure database connection settings
+          db init      Initialize database (create database and tables)
+        """
+        action = arg.strip().lower()
+
+        if not action or action == 'status':
+            self._show_db_status()
+        elif action == 'check':
+            self._check_db_exists()
+        elif action == 'config':
+            self._config_database()
+        elif action == 'init':
+            self._init_database()
+        else:
+            print(f"\033[31mError:\033[0m Unknown action '{action}'")
+            print("Usage: db [init|check|status|config]")
     
     def do_help(self, arg):
         """Show help - enhanced help system"""
@@ -126,15 +150,18 @@ Type '\033[1mhelp\033[0m' for available commands or '\033[1mexit\033[0m' to quit
             print()
             print("\033[32mCore Commands:\033[0m")
             print("  \033[1mshow\033[0m [server|clients|logs|crypto]  Show information")
-            print("  \033[1mmonitor\033[0m [logs|packets] [device]    Monitor real-time activity")  
+            print("  \033[1mmonitor\033[0m [logs|packets] [device]    Monitor real-time activity")
             print("  \033[1mstats\033[0m [device_id]                Show statistics")
             print("  \033[1mcontrol\033[0m [stop|restart|status]     Control server")
+            print("  \033[1mdb\033[0m [init|check|status|config]   Manage database")
             print("  \033[1mhelp\033[0m [command]                   Show this help")
             print()
             print("\033[90mExamples:\033[0m")
             print("  show clients              List connected devices")
             print("  monitor packets device001 Watch device001 packets")
             print("  stats device001           Show device001 statistics")
+            print("  db config                 Configure database connection")
+            print("  db init                   Create database and tables")
             print("  control stop              Stop the server")
             print()
             print("\033[33mPress Ctrl+C to stop monitoring commands\033[0m")
@@ -613,6 +640,234 @@ Type '\033[1mhelp\033[0m' for available commands or '\033[1mexit\033[0m' to quit
                 print("\033[31mServer restart failed\033[0m")
         except Exception as e:
             print(f"\033[31mError restarting server:\033[0m {e}")
+
+    def _show_db_status(self):
+        """Show database connection status"""
+        try:
+            print()
+            print("\033[1mDatabase Connection Status\033[0m")
+            print("=" * 40)
+
+            if not hasattr(self.server, 'database_manager'):
+                print("\033[31mError:\033[0m Database manager not available")
+                return
+
+            db = self.server.database_manager
+
+            # Connection info
+            print(f"Host:            \033[36m{db.host}:{db.port}\033[0m")
+            print(f"Database:        \033[36m{db.database}\033[0m")
+            print(f"User:            \033[36m{db.user}\033[0m")
+
+            # Check connection
+            if db.connect():
+                print(f"Status:          \033[32mCONNECTED\033[0m")
+                db.disconnect()
+            else:
+                print(f"Status:          \033[31mDISCONNECTED\033[0m")
+
+            print()
+
+        except Exception as e:
+            print(f"\033[31mError:\033[0m {e}")
+
+    def _check_db_exists(self):
+        """Check if database exists"""
+        try:
+            print()
+            print("\033[1mDatabase Existence Check\033[0m")
+            print("=" * 40)
+
+            if not hasattr(self.server, 'database_manager'):
+                print("\033[31mError:\033[0m Database manager not available")
+                return
+
+            db = self.server.database_manager
+            print(f"Checking database: \033[36m{db.database}\033[0m")
+
+            if db.database_exists():
+                print(f"Result:          \033[32mDatabase EXISTS\033[0m")
+                print()
+                print("Database is ready to use.")
+            else:
+                print(f"Result:          \033[33mDatabase NOT FOUND\033[0m")
+                print()
+                print("Use '\033[1mdb init\033[0m' to create the database and tables.")
+
+            print()
+
+        except Exception as e:
+            print(f"\033[31mError:\033[0m {e}")
+
+    def _config_database(self):
+        """Configure database connection settings"""
+        try:
+            import json
+            import os
+
+            print()
+            print("\033[1mDatabase Configuration\033[0m")
+            print("=" * 40)
+            print()
+            print("\033[33mNote:\033[0m Changes will be saved to config.json")
+            print("\033[33mNote:\033[0m Press Enter to keep current value")
+            print()
+
+            if not hasattr(self.server, 'database_manager'):
+                print("\033[31mError:\033[0m Database manager not available")
+                return
+
+            db = self.server.database_manager
+
+            # Show current configuration
+            print("\033[1mCurrent Configuration:\033[0m")
+            print(f"  Host:     \033[36m{db.host}\033[0m")
+            print(f"  Port:     \033[36m{db.port}\033[0m")
+            print(f"  User:     \033[36m{db.user}\033[0m")
+            print(f"  Password: \033[36m{'*' * len(db.password) if db.password else '(empty)'}\033[0m")
+            print(f"  Database: \033[36m{db.database}\033[0m")
+            print()
+
+            # Get new values
+            try:
+                new_host = input(f"Host [{db.host}]: ").strip() or db.host
+                new_port_str = input(f"Port [{db.port}]: ").strip()
+                new_port = int(new_port_str) if new_port_str else db.port
+                new_user = input(f"User [{db.user}]: ").strip() or db.user
+                new_password = input(f"Password [{'*' * 8}]: ").strip() or db.password
+                new_database = input(f"Database [{db.database}]: ").strip() or db.database
+
+            except (EOFError, KeyboardInterrupt):
+                print("\n\033[33mInfo:\033[0m Configuration cancelled")
+                print()
+                return
+
+            # Confirm changes
+            print()
+            print("\033[1mNew Configuration:\033[0m")
+            print(f"  Host:     \033[36m{new_host}\033[0m")
+            print(f"  Port:     \033[36m{new_port}\033[0m")
+            print(f"  User:     \033[36m{new_user}\033[0m")
+            print(f"  Password: \033[36m{'*' * len(new_password) if new_password else '(empty)'}\033[0m")
+            print(f"  Database: \033[36m{new_database}\033[0m")
+            print()
+
+            try:
+                confirm = input("Save these settings? (yes/no): ").strip().lower()
+                if confirm not in ['yes', 'y']:
+                    print("\033[33mInfo:\033[0m Configuration cancelled")
+                    print()
+                    return
+            except (EOFError, KeyboardInterrupt):
+                print("\n\033[33mInfo:\033[0m Configuration cancelled")
+                print()
+                return
+
+            # Load config.json
+            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config.json')
+
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+            except FileNotFoundError:
+                print(f"\033[31mError:\033[0m config.json not found at {config_path}")
+                return
+            except json.JSONDecodeError:
+                print(f"\033[31mError:\033[0m Invalid JSON in config.json")
+                return
+
+            # Update database section
+            if 'database' not in config:
+                config['database'] = {}
+
+            config['database']['host'] = new_host
+            config['database']['port'] = new_port
+            config['database']['user'] = new_user
+            config['database']['password'] = new_password
+            config['database']['database'] = new_database
+
+            # Save config.json
+            try:
+                with open(config_path, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, indent=4, ensure_ascii=False)
+
+                print()
+                print("\033[32mSuccess:\033[0m Configuration saved to config.json")
+                print()
+                print("\033[33mNote:\033[0m Restart the server for changes to take effect")
+                print("      Use '\033[1mcontrol restart\033[0m' to restart the server")
+                print()
+
+            except Exception as e:
+                print(f"\033[31mError:\033[0m Failed to save config.json: {e}")
+                print()
+
+        except Exception as e:
+            print(f"\033[31mError:\033[0m {e}")
+            print()
+
+    def _init_database(self):
+        """Initialize database (create database and tables)"""
+        try:
+            print()
+            print("\033[1mDatabase Initialization\033[0m")
+            print("=" * 40)
+
+            if not hasattr(self.server, 'database_manager'):
+                print("\033[31mError:\033[0m Database manager not available")
+                return
+
+            db = self.server.database_manager
+
+            # Check if database already exists
+            print("Checking if database exists...")
+            if db.database_exists():
+                print(f"\033[33mWarning:\033[0m Database '\033[36m{db.database}\033[0m' already exists")
+                print()
+
+                # Ask for confirmation
+                try:
+                    response = input("Do you want to create tables anyway? (yes/no): ").strip().lower()
+                    if response not in ['yes', 'y']:
+                        print("\033[33mInfo:\033[0m Database initialization cancelled")
+                        print()
+                        return
+                except EOFError:
+                    print("\n\033[33mInfo:\033[0m Database initialization cancelled")
+                    print()
+                    return
+            else:
+                print(f"Database '\033[36m{db.database}\033[0m' does not exist")
+                print()
+
+            # Initialize database
+            print("Initializing database...")
+            if db.initialize_database():
+                print()
+                print("\033[32mSuccess:\033[0m Database initialized successfully!")
+                print()
+                print("Created components:")
+                print("  \033[32m✓\033[0m Database (if not existed)")
+                print("  \033[32m✓\033[0m sensor_info table")
+                print("  \033[32m✓\033[0m sensor_data table")
+                print("  \033[32m✓\033[0m sensor_type table")
+                print("  \033[32m✓\033[0m alarm_log table")
+                print("  \033[32m✓\033[0m alarm_type table")
+                print("  \033[32m✓\033[0m device_connection_log table")
+                print("  \033[32m✓\033[0m device_status table")
+                print("  \033[32m✓\033[0m raw_packet_log table")
+                print("  \033[32m✓\033[0m Master data (sensor types, alarm types)")
+                print()
+                print("Database is ready for use!")
+            else:
+                print()
+                print("\033[31mError:\033[0m Database initialization failed")
+                print("Please check the logs for details.")
+
+            print()
+
+        except Exception as e:
+            print(f"\033[31mError:\033[0m {e}")
     
     def _format_uptime(self, seconds):
         """Format uptime in human readable format"""

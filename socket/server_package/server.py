@@ -128,18 +128,27 @@ Status: \033[32mRUNNING\033[0m  Port: \033[90m{self.port}\033[0m
         """서버 시작"""
         # 인터랙티브 모드: 대시보드 없이 로그만 수집
         # 실제 콘솔 출력은 명령어를 통해서만 확인 가능
-        
+
         # 기존 서버 인스턴스 확인
         if self.process_manager.check_existing_server():
             self._log("Existing server instance may be running", "warning")
-        
+
+        # 데이터베이스 연결 확인 (생성하지 않음)
+        self._log("Checking database connection...")
+        if not self.database_manager.connect():
+            self._log("Database connection failed", "error")
+            self._log("Please check MySQL/MariaDB server is running and database exists", "error")
+            self._log("Use 'db init' command to create database if it doesn't exist", "warning")
+            return False
+        self._log("Database connection successful")
+
         # ECDHE + Ed25519 키 초기화
         self._log("Initializing ECDHE + Ed25519 crypto system...")
         if not self.crypto_manager.initialize_keys():
             self._log("Crypto system initialization failed", "error")
             return False
         self._log("ECDHE + PFS cryptographic system initialized")
-        
+
         # 포트 사용 가능 여부 확인 및 서버 소켓 생성
         self._log(f"Checking port {self.port} availability...")
         try:

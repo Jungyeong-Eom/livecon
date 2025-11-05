@@ -12,6 +12,7 @@
 - [Key Features](#-key-features)
 - [Security Features](#-security-features)
 - [System Requirements](#-system-requirements)
+- [Compatibility](#-compatibility)
 - [Quick Start](#-quick-start)
 - [Installation](#-installation)
 - [Usage](#-usage)
@@ -85,6 +86,60 @@ LIVECON IoT System is an enterprise-grade solution that collects and monitors da
 - **Port**: TCP 12351 (default, configurable)
 - **Firewall**: Server port must be open
 
+## 🔄 Compatibility
+
+### Platform Compatibility
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| **Windows 10/11** | ✅ Fully Supported | Native executable available |
+| **Ubuntu 20.04+** | ✅ Fully Supported | Native executable available |
+| **CentOS 7+** | ✅ Fully Supported | Native executable available |
+| **Debian 10+** | ✅ Compatible | Requires Python 3.8+ |
+| **macOS 10.15+** | ⚠️ Untested | Should work with Python 3.8+ |
+| **Raspberry Pi OS** | ✅ Compatible | ARM64 architecture supported |
+
+### Python Version Compatibility
+
+| Python Version | Status | Notes |
+|----------------|--------|-------|
+| **3.8** | ✅ Fully Supported | Minimum required version |
+| **3.9** | ✅ Fully Supported | Recommended |
+| **3.10** | ✅ Fully Supported | Recommended |
+| **3.11** | ✅ Fully Supported | Recommended |
+| **3.12+** | ✅ Compatible | Latest features supported |
+| **3.7 or older** | ❌ Not Supported | Missing required features |
+
+### Database Compatibility
+
+| Database | Version | Status | Notes |
+|----------|---------|--------|-------|
+| **MySQL** | 5.7+ | ✅ Supported | Fully tested |
+| **MySQL** | 8.0+ | ✅ Recommended | Best performance |
+| **MariaDB** | 10.3+ | ✅ Supported | Fully tested |
+| **MariaDB** | 10.5+ | ✅ Recommended | Best performance |
+
+### Architecture Support
+
+| Architecture | Status | Notes |
+|--------------|--------|-------|
+| **x86_64 (64-bit)** | ✅ Fully Supported | Primary target |
+| **ARM64** | ✅ Supported | IoT devices, Raspberry Pi |
+| **x86 (32-bit)** | ⚠️ Untested | May work but not recommended |
+
+### Cryptography Support
+
+All cryptographic operations are supported on:
+- ✅ Windows (x86_64)
+- ✅ Linux (x86_64, ARM64)
+- ✅ macOS (x86_64, Apple Silicon)
+
+**Cryptographic Features:**
+- ECDHE (X25519) - Python 3.6+
+- Ed25519 Digital Signatures - Python 3.6+
+- ChaCha20-Poly1305 AEAD - Python 3.6+
+- HKDF-SHA256 Key Derivation - Python 3.6+
+
 ## 🚀 Quick Start
 
 ### 1. Clone Repository
@@ -94,6 +149,27 @@ cd livecon-iot
 ```
 
 ### 2. Database Setup
+
+You have two options to set up the database:
+
+#### Option A: Automatic Setup (Recommended)
+
+```bash
+# 1. Start the server (will show database error if not exists)
+cd server_package
+python server.py
+
+# 2. In the server console, initialize the database
+livecon> db init
+
+# This will automatically create:
+# - Database (if not exists)
+# - All required tables
+# - Master data (sensor types, alarm types)
+```
+
+#### Option B: Manual Setup
+
 ```bash
 # Connect to MySQL/MariaDB
 mysql -u root -p
@@ -374,7 +450,7 @@ livecon-iot/
 
 ### Database Connection Failure
 
-**Symptom**: "Database connection error"
+**Symptom**: "Database connection error" or "Database not found"
 
 **Solution**:
 1. Verify MySQL/MariaDB service is running
@@ -386,7 +462,15 @@ livecon-iot/
    sudo systemctl status mysql
    ```
 2. Verify database connection information in server `config.json`
-3. Check database user privileges
+3. Check if database exists and create if needed
+
+   ```bash
+   # In server console
+   livecon> db check    # Check if database exists
+   livecon> db init     # Create database if it doesn't exist
+   ```
+
+4. Check database user privileges
    ```sql
    GRANT ALL PRIVILEGES ON sensor_db.* TO 'root'@'localhost';
    FLUSH PRIVILEGES;

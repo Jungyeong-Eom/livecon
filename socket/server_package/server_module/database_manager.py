@@ -306,3 +306,245 @@ class DatabaseManager:
         except Exception as e:
             self._log(f"All sensor information query by device ID error: {e}", "error")
             return []
+
+    def _create_connection_without_db(self):
+        """Create MySQL connection without specifying database (for database creation)"""
+        try:
+            conn = pymysql.connect(
+                host=self.host,
+                port=self.port,
+                user=self.user,
+                password=self.password,
+                charset=self.charset,
+                cursorclass=pymysql.cursors.DictCursor
+            )
+            return conn
+        except pymysql.MySQLError as e:
+            self._log(f"MySQL server connection failed: {e}", "error")
+            return None
+
+    def database_exists(self) -> bool:
+        """Check if database exists"""
+        conn = self._create_connection_without_db()
+        if conn is None:
+            return False
+
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SHOW DATABASES LIKE %s", (self.database,))
+                result = cursor.fetchone()
+                return result is not None
+        except pymysql.MySQLError as e:
+            self._log(f"Database existence check failed: {e}", "error")
+            return False
+        finally:
+            conn.close()
+
+    def create_database(self) -> bool:
+        """Create database automatically"""
+        self._log(f"Creating database '{self.database}'...")
+
+        conn = self._create_connection_without_db()
+        if conn is None:
+            self._log("Failed to connect to MySQL server", "error")
+            return False
+
+        try:
+            with conn.cursor() as cursor:
+                # Create database
+                cursor.execute(f"CREATE DATABASE `{self.database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+                conn.commit()
+                self._log(f"Database '{self.database}' created successfully", "info")
+                return True
+        except pymysql.MySQLError as e:
+            self._log(f"Database creation failed: {e}", "error")
+            return False
+        finally:
+            conn.close()
+
+    def create_tables(self) -> bool:
+        """Create all required tables automatically"""
+        self._log("Creating database tables...")
+
+        # Table creation SQL statements
+        tables = {
+            'device_info': """
+                CREATE TABLE IF NOT EXISTS `device_info` (
+                    `device_id` VARCHAR(50) PRIMARY KEY COMMENT 'Device ID',
+                    `device_name` VARCHAR(100) COMMENT 'Device name',
+                    `device_type` VARCHAR(50) COMMENT 'Device type',
+                    `registered_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Registration time'
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Device information table';
+            """,
+            'sensor_type': """
+                CREATE TABLE IF NOT EXISTS `sensor_type` (
+                    `sensor_type_id` INT PRIMARY KEY COMMENT 'Sensor type ID (0:temp, 1:wtr_temp, 2:do)',
+                    `sensor_type_name` VARCHAR(50) NOT NULL COMMENT 'Sensor type name'
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Sensor type table';
+            """,
+            'value_type': """
+                CREATE TABLE IF NOT EXISTS `value_type` (
+                    `value_type_id` INT PRIMARY KEY COMMENT 'Value type ID (1:temp, 2:do, 3:wtr_temp)',
+                    `value_type_name` VARCHAR(50) NOT NULL COMMENT 'Value type name',
+                    `unit` VARCHAR(20) COMMENT 'Unit'
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Value type table';
+            """,
+            'sensor_info': """
+                CREATE TABLE IF NOT EXISTS `sensor_info` (
+                    `sensor_id` VARCHAR(20) PRIMARY KEY COMMENT 'Sensor ID',
+                    `device_id` VARCHAR(50) NOT NULL COMMENT 'Device ID',
+                    `sensor_type_id` INT NOT NULL COMMENT 'Sensor type ID',
+                    `sensor_name` VARCHAR(100) COMMENT 'Sensor name',
+                    `alarm_min` DECIMAL(10,2) COMMENT 'Alarm threshold (minimum)',
+                    `alarm_max` DECIMAL(10,2) COMMENT 'Alarm threshold (maximum)',
+                    `sensor_min` DECIMAL(10,2) COMMENT 'Sensor measurement range (minimum)',
+                    `sensor_max` DECIMAL(10,2) COMMENT 'Sensor measurement range (maximum)',
+                    `resolution` DECIMAL(10,4) COMMENT 'Sensor resolution',
+                    `registered_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Registration time',
+                    FOREIGN KEY (`device_id`) REFERENCES `device_info`(`device_id`) ON DELETE CASCADE,
+                    FOREIGN KEY (`sensor_type_id`) REFERENCES `sensor_type`(`sensor_type_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Sensor information table';
+            """,
+            'alarm_type': """
+                CREATE TABLE IF NOT EXISTS `alarm_type` (
+                    `alarm_type_id` INT PRIMARY KEY COMMENT 'Alarm type ID',
+                    `alarm_type_name` VARCHAR(50) NOT NULL COMMENT 'Alarm type name'
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Alarm type table';
+            """,
+            'sensor_result': """
+                CREATE TABLE IF NOT EXISTS `sensor_result` (
+                    `result_id` VARCHAR(20) PRIMARY KEY COMMENT 'Result ID',
+                    `device_id` VARCHAR(50) NOT NULL COMMENT 'Device ID',
+                    `sensor_id` VARCHAR(20) NOT NULL COMMENT 'Sensor ID',
+                    `value_type_id` INT NOT NULL COMMENT 'Value type ID',
+                    `sensor_value` DECIMAL(10,4) COMMENT 'Sensor measurement value',
+                    `alarm_state` INT DEFAULT 0 COMMENT 'Alarm state (0:normal, 1~:alarm type)',
+                    `error_state` INT DEFAULT 0 COMMENT 'Error state (0:normal, 1:error)',
+                    `location` VARCHAR(100) COMMENT 'Measurement location',
+                    `measured_at` DATETIME NOT NULL COMMENT 'Measurement time',
+                    FOREIGN KEY (`sensor_id`) REFERENCES `sensor_info`(`sensor_id`) ON DELETE CASCADE,
+                    FOREIGN KEY (`value_type_id`) REFERENCES `value_type`(`value_type_id`),
+                    INDEX idx_measured_at (`measured_at`),
+                    INDEX idx_device_sensor (`device_id`, `sensor_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Sensor measurement result table';
+            """,
+            'alarm_log': """
+                CREATE TABLE IF NOT EXISTS `alarm_log` (
+                    `alarm_id` VARCHAR(20) PRIMARY KEY COMMENT 'Alarm ID',
+                    `alarmed_at` DATETIME NOT NULL COMMENT 'Alarm occurrence time',
+                    `sensor_id` VARCHAR(20) NOT NULL COMMENT 'Sensor ID',
+                    `alarm_type_id` INT NOT NULL COMMENT 'Alarm type ID',
+                    `alarm_log` TEXT COMMENT 'Alarm log message',
+                    FOREIGN KEY (`sensor_id`) REFERENCES `sensor_info`(`sensor_id`) ON DELETE CASCADE,
+                    FOREIGN KEY (`alarm_type_id`) REFERENCES `alarm_type`(`alarm_type_id`),
+                    INDEX idx_alarmed_at (`alarmed_at`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Alarm log table';
+            """,
+            'raw_packet_log': """
+                CREATE TABLE IF NOT EXISTS `raw_packet_log` (
+                    `packet_id` VARCHAR(20) PRIMARY KEY COMMENT 'Packet ID',
+                    `device_id` VARCHAR(50) COMMENT 'Device ID',
+                    `received_at` DATETIME NOT NULL COMMENT 'Packet reception time',
+                    `packet_log` TEXT COMMENT 'Raw packet data (hexadecimal)',
+                    `parse_success` TINYINT(1) DEFAULT 1 COMMENT 'Parse success (0:fail, 1:success)',
+                    INDEX idx_received_at (`received_at`),
+                    INDEX idx_device_id (`device_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Raw packet log table';
+            """
+        }
+
+        try:
+            for table_name, create_sql in tables.items():
+                result = self.execute_query(create_sql)
+                if result is not None:
+                    self._log(f"Table '{table_name}' created successfully")
+                else:
+                    self._log(f"Failed to create table '{table_name}'", "error")
+                    return False
+
+            self._log("All tables created successfully", "info")
+            return True
+
+        except Exception as e:
+            self._log(f"Table creation error: {e}", "error")
+            return False
+
+    def insert_default_data(self) -> bool:
+        """Insert default master data"""
+        self._log("Inserting default data...")
+
+        try:
+            # Insert sensor types
+            sensor_types = [
+                (0, 'Temperature Sensor'),
+                (1, 'Water Temperature Sensor'),
+                (2, 'Dissolved Oxygen Sensor')
+            ]
+            for type_id, type_name in sensor_types:
+                self.execute_query(
+                    "INSERT IGNORE INTO sensor_type (sensor_type_id, sensor_type_name) VALUES (%s, %s)",
+                    (type_id, type_name)
+                )
+
+            # Insert value types
+            value_types = [
+                (1, 'Temperature', '°C'),
+                (2, 'Dissolved Oxygen', 'mg/L'),
+                (3, 'Water Temperature', '°C')
+            ]
+            for type_id, type_name, unit in value_types:
+                self.execute_query(
+                    "INSERT IGNORE INTO value_type (value_type_id, value_type_name, unit) VALUES (%s, %s, %s)",
+                    (type_id, type_name, unit)
+                )
+
+            # Insert alarm types
+            alarm_types = [
+                (0, 'Normal'),
+                (1, 'High Threshold Alarm'),
+                (2, 'Low Threshold Alarm'),
+                (3, 'Sensor Offline'),
+                (4, 'Sensor Error'),
+                (5, 'Data Anomaly'),
+                (6, 'Range Overflow')
+            ]
+            for type_id, type_name in alarm_types:
+                self.execute_query(
+                    "INSERT IGNORE INTO alarm_type (alarm_type_id, alarm_type_name) VALUES (%s, %s)",
+                    (type_id, type_name)
+                )
+
+            self._log("Default data inserted successfully", "info")
+            return True
+
+        except Exception as e:
+            self._log(f"Default data insertion error: {e}", "error")
+            return False
+
+    def initialize_database(self) -> bool:
+        """Initialize database (check existence, create if not exists, create tables)"""
+        self._log("Starting database initialization...")
+
+        # 1. Check if database exists
+        if not self.database_exists():
+            self._log(f"Database '{self.database}' does not exist", "warning")
+
+            # 2. Create database
+            if not self.create_database():
+                self._log("Database creation failed", "error")
+                return False
+        else:
+            self._log(f"Database '{self.database}' already exists")
+
+        # 3. Create tables
+        if not self.create_tables():
+            self._log("Table creation failed", "error")
+            return False
+
+        # 4. Insert default data
+        if not self.insert_default_data():
+            self._log("Default data insertion failed", "error")
+            return False
+
+        self._log("Database initialization completed successfully", "info")
+        return True
