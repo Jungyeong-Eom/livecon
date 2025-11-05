@@ -1,151 +1,151 @@
-# LIVECON IoT 센서 시스템
+# LIVECON IoT Sensor System
 
-> 고급 암호화 기술을 적용한 실시간 IoT 센서 데이터 수집 및 모니터링 시스템
+> Real-time IoT sensor data collection and monitoring system with advanced encryption technology
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org)
 [![Security](https://img.shields.io/badge/Security-ECDHE%20%7C%20Ed25519%20%7C%20ChaCha20-green.svg)](https://github.com)
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 
-## 📋 목차
+## 📋 Table of Contents
 
-- [개요](#-개요)
-- [주요 기능](#-주요-기능)
-- [보안 기능](#-보안-기능)
-- [시스템 요구사항](#-시스템-요구사항)
-- [빠른 시작](#-빠른-시작)
-- [설치 방법](#-설치-방법)
-- [사용 방법](#-사용-방법)
-- [문서](#-문서)
-- [프로젝트 구조](#-프로젝트-구조)
-- [트러블슈팅](#-트러블슈팅)
-- [라이선스](#-라이선스)
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Security Features](#-security-features)
+- [System Requirements](#-system-requirements)
+- [Quick Start](#-quick-start)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Documentation](#-documentation)
+- [Project Structure](#-project-structure)
+- [Troubleshooting](#-troubleshooting)
+- [License](#-license)
 
-## 🌟 개요
+## 🌟 Overview
 
-LIVECON IoT 시스템은 IoT 센서로부터 실시간으로 데이터를 수집하고 모니터링하는 엔터프라이즈급 솔루션입니다. 최신 암호화 기술을 적용하여 데이터 보안을 보장하며, 자동 알람 및 이상 탐지 기능을 제공합니다.
+LIVECON IoT System is an enterprise-grade solution that collects and monitors data from IoT sensors in real-time. It ensures data security with cutting-edge encryption technology and provides automatic alarm and anomaly detection features.
 
-### 센서 데이터 타입
-- 🌡️ **온도** (Temperature)
-- 💧 **용존산소** (Dissolved Oxygen)
-- 🌊 **수온** (Water Temperature)
-- 📍 **위치 정보** (Geohash 10자리, 약 60cm 정밀도)
+### Sensor Data Types
+- 🌡️ **Temperature**
+- 💧 **Dissolved Oxygen**
+- 🌊 **Water Temperature**
+- 📍 **Location Information** (Geohash 10 digits, ~60cm precision)
 
-## ✨ 주요 기능
+## ✨ Key Features
 
-### 실시간 모니터링
-- 다중 센서 동시 모니터링
-- 실시간 데이터 수집 및 저장
-- 웹 기반 대시보드 (선택사항)
+### Real-time Monitoring
+- Simultaneous monitoring of multiple sensors
+- Real-time data collection and storage
+- Web-based dashboard (optional)
 
-### 자동 알람 시스템
-- 임계값 기반 알람
-- 센서 오프라인 감지
-- 데이터 이상 탐지 (급격한 변화, 고착 데이터)
-- 센서 측정 범위 초과 감지
-- 실시간 알람 로그
+### Automatic Alarm System
+- Threshold-based alarms
+- Sensor offline detection
+- Data anomaly detection (sudden changes, stuck data)
+- Sensor measurement range overflow detection
+- Real-time alarm logging
 
-### 데이터 관리
-- MySQL 데이터베이스 저장
-- 원본 패킷 보관 (디버깅용)
-- 센서 메타데이터 관리
-- 알람 이력 추적
+### Data Management
+- MySQL database storage
+- Original packet preservation (for debugging)
+- Sensor metadata management
+- Alarm history tracking
 
-## 🔒 보안 기능
+## 🔒 Security Features
 
-### 암호화 프로토콜
-| 기술 | 용도 | 상세 |
-|------|------|------|
-| **ECDHE (X25519)** | 키 교환 | Perfect Forward Secrecy 보장 |
-| **Ed25519** | 디지털 서명 | 서버 인증 및 공개키 피닝 |
-| **ChaCha20-Poly1305** | 대칭 암호화 | AEAD (인증 암호화) |
-| **HKDF-SHA256** | 키 유도 | 솔트 기반 강력한 키 생성 |
+### Encryption Protocols
+| Technology | Purpose | Details |
+|------------|---------|---------|
+| **ECDHE (X25519)** | Key Exchange | Perfect Forward Secrecy guaranteed |
+| **Ed25519** | Digital Signature | Server authentication and public key pinning |
+| **ChaCha20-Poly1305** | Symmetric Encryption | AEAD (Authenticated Encryption) |
+| **HKDF-SHA256** | Key Derivation | Salt-based strong key generation |
 
-### 보안 특징
-✅ **Perfect Forward Secrecy (PFS)** - 세션 키가 노출되어도 이전 통신 보호
-✅ **공개키 피닝** - MITM 공격 방지
-✅ **재생 공격 방지** - 논스 카운터 기반 중복 패킷 거부
-✅ **무결성 보장** - Poly1305 MAC으로 데이터 변조 탐지
-✅ **컨텍스트 바인딩** - AAD로 장치 ID 검증
+### Security Features
+✅ **Perfect Forward Secrecy (PFS)** - Protects previous communications even if session key is compromised
+✅ **Public Key Pinning** - Prevents MITM attacks
+✅ **Replay Attack Prevention** - Nonce counter-based duplicate packet rejection
+✅ **Integrity Assurance** - Data tampering detection with Poly1305 MAC
+✅ **Context Binding** - Device ID verification with AAD
 
-## 💻 시스템 요구사항
+## 💻 System Requirements
 
-### 서버
+### Server
 - **OS**: Windows 10+ / Linux (Ubuntu 20.04+, CentOS 7+)
-- **Python**: 3.8 이상
-- **데이터베이스**: MySQL 5.7+ 또는 MariaDB 10.3+
-- **메모리**: 최소 2GB RAM
-- **디스크**: 최소 10GB 여유 공간
+- **Python**: 3.8 or higher
+- **Database**: MySQL 5.7+ or MariaDB 10.3+
+- **Memory**: Minimum 2GB RAM
+- **Disk**: Minimum 10GB free space
 
-### 클라이언트
+### Client
 - **OS**: Windows 10+ / Linux
-- **Python**: 3.8 이상 (개발 시) / 실행 파일 사용 시 불필요
-- **메모리**: 최소 512MB RAM
+- **Python**: 3.8 or higher (for development) / Not required when using executable
+- **Memory**: Minimum 512MB RAM
 
-### 네트워크
-- **포트**: TCP 12351 (기본값, 변경 가능)
-- **방화벽**: 서버 포트 개방 필요
+### Network
+- **Port**: TCP 12351 (default, configurable)
+- **Firewall**: Server port must be open
 
-## 🚀 빠른 시작
+## 🚀 Quick Start
 
-### 1. 저장소 클론
+### 1. Clone Repository
 ```bash
 git clone https://github.com/your-org/livecon-iot.git
 cd livecon-iot
 ```
 
-### 2. 데이터베이스 설정
+### 2. Database Setup
 ```bash
-# MySQL/MariaDB 접속
+# Connect to MySQL/MariaDB
 mysql -u root -p
 
-# 데이터베이스 생성
+# Create database
 CREATE DATABASE sensor_db CHARACTER SET utf8mb4;
 
-# 테이블 생성 스크립트 실행
+# Execute table creation script
 source database/schema.sql
 ```
 
-### 3. 서버 설정 및 실행
+### 3. Server Configuration and Execution
 ```bash
 cd server_package
 
-# 의존성 설치
+# Install dependencies
 pip install -r requirements.txt
 
-# 설정 파일 수정
-# config.json 파일에서 데이터베이스 접속 정보 수정
+# Edit configuration file
+# Modify database connection information in config.json
 
-# 서버 실행
+# Run server
 python server.py
 ```
 
-### 4. 서버 공개키 추출
+### 4. Extract Server Public Key
 ```bash
 cd server_package
 python extract_server_pubkey.py
 
-# 출력된 공개키를 클라이언트 config.json에 복사
+# Copy the output public key to client config.json
 ```
 
-### 5. 클라이언트 설정 및 실행
+### 5. Client Configuration and Execution
 ```bash
 cd client_package
 
-# 의존성 설치
+# Install dependencies
 pip install -r requirements.txt
 
-# 설정 파일 수정
-# config.json 파일에서 서버 주소, 포트, 공개키 설정
+# Edit configuration file
+# Set server address, port, and public key in config.json
 
-# 클라이언트 실행
+# Run client
 python client.py
 ```
 
-## 📦 설치 방법
+## 📦 Installation
 
-### 개발 환경 설치
+### Development Environment Setup
 
-#### 서버
+#### Server
 ```bash
 cd server_package
 pip install -r requirements.txt
@@ -157,7 +157,7 @@ cryptography>=41.0.0
 PyMySQL>=1.1.0
 ```
 
-#### 클라이언트
+#### Client
 ```bash
 cd client_package
 pip install -r requirements.txt
@@ -168,35 +168,35 @@ pip install -r requirements.txt
 cryptography>=41.0.0
 ```
 
-### 실행 파일 빌드
+### Building Executables
 
 #### Windows
 ```bash
-# 클라이언트 빌드
+# Build client
 cd client_package
 pyinstaller --clean --noconfirm IoT_Sensor_Client.spec
 
-# 서버 빌드
+# Build server
 cd server_package
 pyinstaller --clean --noconfirm IoT_Sensor_Server.spec
 ```
 
 #### Linux
 ```bash
-# 클라이언트 빌드
+# Build client
 cd client_package
 pyinstaller --clean --noconfirm IoT_Sensor_Client.spec
 
-# 서버 빌드
+# Build server
 cd server_package
 pyinstaller --clean --noconfirm IoT_Sensor_Server.spec
 ```
 
-빌드된 실행 파일은 각각 `dist/` 디렉토리에 생성됩니다.
+Built executables will be created in the `dist/` directory.
 
-## 📖 사용 방법
+## 📖 Usage
 
-### 서버 설정 파일 (`server_package/config.json`)
+### Server Configuration File (`server_package/config.json`)
 
 ```json
 {
@@ -214,7 +214,7 @@ pyinstaller --clean --noconfirm IoT_Sensor_Server.spec
 }
 ```
 
-### 클라이언트 설정 파일 (`client_package/config.json`)
+### Client Configuration File (`client_package/config.json`)
 
 ```json
 {
@@ -230,12 +230,12 @@ pyinstaller --clean --noconfirm IoT_Sensor_Server.spec
 }
 ```
 
-**중요**: `ed25519_pubkey_hex`는 서버에서 `extract_server_pubkey.py`를 실행하여 얻은 값을 입력하세요.
+**Important**: For `ed25519_pubkey_hex`, enter the value obtained by running `extract_server_pubkey.py` on the server.
 
-### 센서 정보 등록
+### Sensor Information Registration
 
 ```sql
--- sensor_info 테이블에 센서 정보 등록
+-- Register sensor information in sensor_info table
 INSERT INTO sensor_info (device_id, sensor_type_id, sensor_name, alarm_min, alarm_max, sensor_min, sensor_max, resolution)
 VALUES
 ('device001', 0, 'Temperature Sensor', 15.0, 35.0, -40.0, 125.0, 0.1),
@@ -243,98 +243,98 @@ VALUES
 ('device001', 2, 'Dissolved Oxygen Sensor', 5.0, 15.0, 0.0, 60.0, 0.01);
 ```
 
-### 실행
+### Execution
 
-#### 개발 모드
+#### Development Mode
 ```bash
-# 서버
+# Server
 cd server_package
 python server.py
 
-# 클라이언트
+# Client
 cd client_package
 python client.py
 ```
 
-#### 실행 파일 모드
+#### Executable Mode
 ```bash
-# Windows 서버
+# Windows Server
 cd server_package\dist
 IoT_Sensor_Server.exe
 
-# Windows 클라이언트
+# Windows Client
 cd client_package\dist
 IoT_Sensor_Client.exe
 
-# Linux 서버
+# Linux Server
 cd server_package/dist
 ./IoT_Sensor_Server
 
-# Linux 클라이언트
+# Linux Client
 cd client_package/dist
 ./IoT_Sensor_Client
 ```
 
-## 📚 문서
+## 📚 Documentation
 
-상세한 기술 문서는 다음 파일을 참조하세요:
+For detailed technical documentation, please refer to:
 
-- **[CODE_DOCUMENTATION.md](CODE_DOCUMENTATION.md)** - 전체 코드 설명 문서
-  - 시스템 아키텍처
-  - 핵심 모듈 설명
-  - 보안 프로토콜 상세 설명
-  - 빌드 및 배포 가이드
+- **[CODE_DOCUMENTATION.md](CODE_DOCUMENTATION.md)** - Complete code documentation
+  - System architecture
+  - Core module explanations
+  - Detailed security protocol descriptions
+  - Build and deployment guide
 
-## 📁 프로젝트 구조
+## 📁 Project Structure
 
 ```
 livecon-iot/
-├── client_package/              # 클라이언트 패키지
-│   ├── client.py               # 메인 클라이언트 프로그램
-│   ├── config.json             # 클라이언트 설정 파일
-│   ├── IoT_Sensor_Client.spec  # PyInstaller 빌드 설정
-│   ├── requirements.txt        # Python 의존성
-│   └── node_module/            # 클라이언트 모듈
-│       ├── ecdhe_crypto.py     # ECDHE 암호화
-│       ├── generate_packet.py  # 센서 패킷 생성
-│       ├── geohash_encode.py   # Geohash 인코딩
-│       └── security_utils.py   # 보안 유틸리티
+├── client_package/              # Client package
+│   ├── client.py               # Main client program
+│   ├── config.json             # Client configuration file
+│   ├── IoT_Sensor_Client.spec  # PyInstaller build configuration
+│   ├── requirements.txt        # Python dependencies
+│   └── node_module/            # Client modules
+│       ├── ecdhe_crypto.py     # ECDHE encryption
+│       ├── generate_packet.py  # Sensor packet generation
+│       ├── geohash_encode.py   # Geohash encoding
+│       └── security_utils.py   # Security utilities
 │
-├── server_package/              # 서버 패키지
-│   ├── server.py               # 메인 서버 프로그램
-│   ├── config.json             # 서버 설정 파일
-│   ├── IoT_Sensor_Server.spec  # PyInstaller 빌드 설정
-│   ├── requirements.txt        # Python 의존성
-│   ├── extract_server_pubkey.py # 서버 공개키 추출 유틸리티
-│   └── server_module/          # 서버 모듈
-│       ├── crypto_manager.py       # 암호화 세션 관리
-│       ├── key_exchange_handler.py # 키 교환 핸들러
-│       ├── client_manager.py       # 클라이언트 관리
-│       ├── packet_parser.py        # 패킷 파서
-│       ├── server_core.py          # 서버 소켓 관리
-│       ├── connection_manager.py   # 연결 상태 관리
-│       ├── alarm_manager.py        # 알람 관리
-│       ├── sensor_monitor.py       # 센서 모니터링
-│       ├── database_manager.py     # 데이터베이스 관리
-│       └── security_utils.py       # 보안 유틸리티
+├── server_package/              # Server package
+│   ├── server.py               # Main server program
+│   ├── config.json             # Server configuration file
+│   ├── IoT_Sensor_Server.spec  # PyInstaller build configuration
+│   ├── requirements.txt        # Python dependencies
+│   ├── extract_server_pubkey.py # Server public key extraction utility
+│   └── server_module/          # Server modules
+│       ├── crypto_manager.py       # Encryption session management
+│       ├── key_exchange_handler.py # Key exchange handler
+│       ├── client_manager.py       # Client management
+│       ├── packet_parser.py        # Packet parser
+│       ├── server_core.py          # Server socket management
+│       ├── connection_manager.py   # Connection state management
+│       ├── alarm_manager.py        # Alarm management
+│       ├── sensor_monitor.py       # Sensor monitoring
+│       ├── database_manager.py     # Database management
+│       └── security_utils.py       # Security utilities
 │
-├── database/                    # 데이터베이스 스크립트
-│   └── schema.sql              # 데이터베이스 스키마
+├── database/                    # Database scripts
+│   └── schema.sql              # Database schema
 │
-├── CODE_DOCUMENTATION.md        # 전체 코드 설명 문서
-├── README.md                    # 이 파일
-└── LICENSE                      # 라이선스 파일
+├── CODE_DOCUMENTATION.md        # Complete code documentation
+├── README.md                    # This file
+└── LICENSE                      # License file
 ```
 
-## 🔧 트러블슈팅
+## 🔧 Troubleshooting
 
-### 연결 실패
+### Connection Failure
 
-**증상**: 클라이언트가 서버에 연결할 수 없음
+**Symptom**: Client cannot connect to server
 
-**해결 방법**:
-1. 서버 IP 주소 및 포트 확인
-2. 방화벽 설정 확인
+**Solution**:
+1. Verify server IP address and port
+2. Check firewall settings
    ```bash
    # Windows
    netsh advfirewall firewall add rule name="LIVECON Server" dir=in action=allow protocol=TCP localport=12351
@@ -342,7 +342,7 @@ livecon-iot/
    # Linux (iptables)
    sudo iptables -A INPUT -p tcp --dport 12351 -j ACCEPT
    ```
-3. 서버가 실행 중인지 확인
+3. Verify server is running
    ```bash
    # Windows
    netstat -an | findstr 12351
@@ -351,33 +351,33 @@ livecon-iot/
    netstat -an | grep 12351
    ```
 
-### 키 교환 실패
+### Key Exchange Failure
 
-**증상**: "Server signature verification failed" 또는 "MITM attack detected"
+**Symptom**: "Server signature verification failed" or "MITM attack detected"
 
-**해결 방법**:
-1. 서버 공개키를 다시 추출
+**Solution**:
+1. Extract server public key again
    ```bash
    cd server_package
    python extract_server_pubkey.py
    ```
-2. 출력된 공개키를 클라이언트 `config.json`의 `ed25519_pubkey_hex`에 정확히 복사
-3. 클라이언트 재시작
+2. Copy the output public key exactly to `ed25519_pubkey_hex` in client `config.json`
+3. Restart client
 
-### 재생 공격 감지
+### Replay Attack Detected
 
-**증상**: "Replay attack detected"
+**Symptom**: "Replay attack detected"
 
-**해결 방법**:
-1. 클라이언트 재시작 (새로운 ECDHE 세션 수립)
-2. 네트워크에서 패킷 중복 전송이 발생하는지 확인
+**Solution**:
+1. Restart client (establish new ECDHE session)
+2. Check if packet duplication is occurring on the network
 
-### 데이터베이스 연결 실패
+### Database Connection Failure
 
-**증상**: "Database connection error"
+**Symptom**: "Database connection error"
 
-**해결 방법**:
-1. MySQL/MariaDB 서비스가 실행 중인지 확인
+**Solution**:
+1. Verify MySQL/MariaDB service is running
    ```bash
    # Windows
    net start MySQL
@@ -385,47 +385,47 @@ livecon-iot/
    # Linux
    sudo systemctl status mysql
    ```
-2. 서버 `config.json`의 데이터베이스 접속 정보 확인
-3. 데이터베이스 사용자 권한 확인
+2. Verify database connection information in server `config.json`
+3. Check database user privileges
    ```sql
    GRANT ALL PRIVILEGES ON sensor_db.* TO 'root'@'localhost';
    FLUSH PRIVILEGES;
    ```
 
-### 센서 데이터가 저장되지 않음
+### Sensor Data Not Being Saved
 
-**증상**: 데이터베이스에 센서 데이터가 저장되지 않음
+**Symptom**: Sensor data is not being saved to database
 
-**해결 방법**:
-1. `sensor_info` 테이블에 센서 정보가 등록되어 있는지 확인
+**Solution**:
+1. Check if sensor information is registered in `sensor_info` table
    ```sql
    SELECT * FROM sensor_info WHERE device_id = 'device001';
    ```
-2. 등록되지 않았다면 센서 정보 등록 ([사용 방법](#-사용-방법) 참조)
+2. If not registered, register sensor information (see [Usage](#-usage))
 
-## 🔐 보안 권장사항
+## 🔐 Security Recommendations
 
-1. **공개키 피닝 활성화**: 클라이언트 `config.json`에 서버 공개키를 반드시 설정하세요.
-2. **강력한 데이터베이스 비밀번호**: 데이터베이스 사용자 비밀번호를 강력하게 설정하세요.
-3. **방화벽 설정**: 서버 포트를 신뢰할 수 있는 IP에서만 접근할 수 있도록 제한하세요.
-4. **정기적인 업데이트**: cryptography 라이브러리를 최신 버전으로 유지하세요.
-5. **로그 모니터링**: 알람 로그를 정기적으로 확인하세요.
+1. **Enable Public Key Pinning**: Always set the server public key in client `config.json`.
+2. **Strong Database Password**: Set a strong password for the database user.
+3. **Firewall Configuration**: Restrict server port access to trusted IPs only.
+4. **Regular Updates**: Keep the cryptography library up to date.
+5. **Log Monitoring**: Regularly check alarm logs.
 
-## 🎯 향후 계획
+## 🎯 Future Plans
 
-- [ ] 웹 기반 대시보드 개발
-- [ ] 다양한 센서 타입 지원 확장
-- [ ] 클러스터링 지원 (서버 고가용성)
-- [ ] REST API 제공
-- [ ] 모바일 앱 개발
+- [ ] Web-based dashboard development
+- [ ] Extended support for various sensor types
+- [ ] Clustering support (server high availability)
+- [ ] REST API provision
+- [ ] Mobile app development
 
-## 🤝 기여
+## 🤝 Contributing
 
-이 프로젝트는 현재 비공개 프로젝트입니다. 기여에 대한 문의는 프로젝트 관리자에게 연락하세요.
+This is currently a private project. For inquiries about contributing, please contact the project manager.
 
-## 📄 라이선스
+## 📄 License
 
-이 프로젝트는 독점 라이선스 하에 있습니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+This project is under a proprietary license. For more information, please refer to the [LICENSE](LICENSE) file.
 
 ---
 
