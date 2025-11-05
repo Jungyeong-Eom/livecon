@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org)
 [![Security](https://img.shields.io/badge/Security-ECDHE%20%7C%20Ed25519%20%7C%20ChaCha20-green.svg)](https://github.com)
-[![License](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ## 📋 Table of Contents
 
@@ -421,12 +421,29 @@ livecon-iot/
 
 ## 🤝 Contributing
 
-This is currently a private project. For inquiries about contributing, please contact the project manager.
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+### How to Contribute
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## 📄 License
 
-This project is under a proprietary license. For more information, please refer to the [LICENSE](LICENSE) file.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Third-Party Libraries
+
+This project uses the following open-source libraries:
+
+- **cryptography** (Apache License 2.0 / BSD) - Cryptographic operations
+- **PyMySQL** (MIT License) - MySQL database connectivity
+- **PyInstaller** (GPL 2.0 with exception) - Executable building
+- **Pillow** (HPND License) - Image processing
 
 ---
 
-**© 2025 LIVECON IoT Team. All rights reserved.**
+**© 2025 LIVECON IoT Team. Released under MIT License.**
